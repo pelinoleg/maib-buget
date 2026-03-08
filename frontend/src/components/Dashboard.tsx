@@ -691,7 +691,7 @@ export default function Dashboard() {
                           <LineChart data={trendData}>
                             <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                             <YAxis tick={{ fontSize: 10 }} width={50} />
-                            <Tooltip formatter={(v: number) => `${fmt(v)}${currLabel}`} />
+                            <Tooltip formatter={(v: number | undefined) => v != null ? `${fmt(v)}${currLabel}` : ""} />
                             <Line type="monotone" dataKey="total" stroke={trendCategoryColor} strokeWidth={2} dot={{ r: 3 }} />
                           </LineChart>
                         </ResponsiveContainer>

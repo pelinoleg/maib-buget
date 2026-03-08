@@ -536,7 +536,7 @@ export default function ExchangeRates() {
                       <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
                       <Tooltip
                         contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
-                        formatter={(v: number) => [v.toFixed(4), "EUR"]}
+                        formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "EUR"] : ""}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
                       />
                       <Area type="linear" dataKey="EUR" stroke="#6366f1" strokeWidth={1.5} fill="url(#eurGrad)" dot={false} />
@@ -559,7 +559,7 @@ export default function ExchangeRates() {
                       <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
                       <Tooltip
                         contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
-                        formatter={(v: number) => [v.toFixed(4), "USD"]}
+                        formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "USD"] : ""}
                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
                       />
                       <Area type="linear" dataKey="USD" stroke="#10b981" strokeWidth={1.5} fill="url(#usdGrad)" dot={false} />
