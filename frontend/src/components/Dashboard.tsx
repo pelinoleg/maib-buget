@@ -604,10 +604,10 @@ export default function Dashboard() {
                           innerRadius={95}
                           outerRadius={180}
                           paddingAngle={0.2}
-                          label={({ name, percent, x, y, textAnchor }: { name?: string; percent: number; x: number; y: number; textAnchor?: "inherit" | "start" | "end" | "middle" }) =>
-                            percent > 0.04 ? (
-                              <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" className="fill-foreground text-xs">
-                                {name} {(percent * 100).toFixed(0)}%
+                          label={({ name, percent, x, y, textAnchor }: { name?: string; percent?: number; x?: number; y?: number; textAnchor?: string }) =>
+                            (percent ?? 0) > 0.04 ? (
+                              <text x={x} y={y} textAnchor={textAnchor as "start" | "middle" | "end"} dominantBaseline="central" className="fill-foreground text-xs">
+                                {name} {((percent ?? 0) * 100).toFixed(0)}%
                               </text>
                             ) : null
                           }
