@@ -29,26 +29,65 @@ A self-hosted personal finance app for analyzing MAIB (Moldova Agroindbank) bank
 
 ## Quick Start with Docker
 
-### 1. Create a directory and config
+### 1. Create a directory with config files
 
 ```bash
 mkdir buget && cd buget
-curl -O https://raw.githubusercontent.com/pelinoleg/maib-buget/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/pelinoleg/maib-buget/main/.env.example
-cp .env.example .env
 ```
 
-### 2. Edit `.env`
+Create `docker-compose.yml`:
+
+```yaml
+services:
+  backend:
+    image: ghcr.io/pelinoleg/maib-buget-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=sqlite:////data/buget.db
+      - UPLOAD_DIR=/data/uploaded_pdfs
+    volumes:
+      - ./data:/data
+    ports:
+      - "8453:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    image: ghcr.io/pelinoleg/maib-buget-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "8454:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+```
+
+Create `.env`:
 
 ```bash
-nano .env
+# AI Categorization (optional — app works without it)
+OPENAI_API_KEY=
+
+# Telegram Bot (optional)
+TELEGRAM_BOT_TOKEN=
+
+# Tax Declaration
+TAX_RATE=12
+TAX_CHILD_DEDUCTION=9900
+TAX_PERSONAL_DEDUCTION=29700
+
+# Frontend
+VITE_DEFAULT_PERIOD=last_month
+VITE_PAGE_SIZE=200
+VITE_BASE_CURRENCY=EUR
+COVERAGE_START=2025-01
 ```
 
-Required settings:
-- `OPENAI_API_KEY` — for AI categorization (optional, app works without it)
-- `TELEGRAM_BOT_TOKEN` — for Telegram bot (optional)
-
-### 3. Start
+### 2. Start
 
 ```bash
 docker compose pull
@@ -57,7 +96,7 @@ docker compose up -d
 
 The app is available at `http://your-server:8454`
 
-### 4. Update
+### 3. Update
 
 ```bash
 docker compose pull
