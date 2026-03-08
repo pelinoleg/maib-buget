@@ -18,7 +18,7 @@ export default function CategoryManager() {
   const [rules, setRules] = useState<Rule[]>([]);
   const [pendingRules, setPendingRules] = useState<Rule[]>([]);
   const [typeRules, setTypeRules] = useState<TypeRuleData[]>([]);
-  const [aiStatus, setAiStatus] = useState(""); // kept for RulesTab/PendingRulesTab
+  const [, setAiStatus] = useState("");
 
   const reload = () => {
     getCategories().then(setCategories).catch(() => {});

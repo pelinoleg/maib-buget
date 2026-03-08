@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -220,7 +220,6 @@ export default function CompareExpenses() {
             {comparison.map((c) => {
               const curW = Math.max((c.current / globalMax) * 100, 0.5);
               const prevW = Math.max((c.previous / globalMax) * 100, 0.5);
-              const up = c.delta > 0;
               return (
                 <Card key={c.category_id ?? "none"} className="overflow-hidden">
                   <CardContent className="py-3 px-4">

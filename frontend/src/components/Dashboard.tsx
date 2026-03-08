@@ -604,7 +604,7 @@ export default function Dashboard() {
                           innerRadius={95}
                           outerRadius={180}
                           paddingAngle={0.2}
-                          label={({ name, percent, x, y, textAnchor }: { name: string; percent: number; x: number; y: number; textAnchor: string }) =>
+                          label={({ name, percent, x, y, textAnchor }: { name?: string; percent: number; x: number; y: number; textAnchor?: "inherit" | "start" | "end" | "middle" }) =>
                             percent > 0.04 ? (
                               <text x={x} y={y} textAnchor={textAnchor} dominantBaseline="central" className="fill-foreground text-xs">
                                 {name} {(percent * 100).toFixed(0)}%
@@ -728,7 +728,7 @@ export default function Dashboard() {
                   className="cursor-pointer"
                   onClick={(e) => {
                     if (e?.activeLabel) {
-                      const [y, m] = e.activeLabel.split("-");
+                      const [y, m] = String(e.activeLabel).split("-");
                       const params = new URLSearchParams({
                         date_from: `${y}-${m}-01`,
                         date_to: `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`,
@@ -740,7 +740,7 @@ export default function Dashboard() {
                 >
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number | undefined, name: string) => value != null ? [`${fmt(value)}${currLabel}`, name] : ""} />
+                  <Tooltip formatter={(value: number | undefined, name?: string) => value != null ? [`${fmt(value)}${currLabel}`, name ?? ""] : ""} />
                   <Legend content={() => (
                     <div className="flex items-center justify-center gap-4 mt-2 text-sm">
                       <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#22c55e" }} />Venituri</span>
