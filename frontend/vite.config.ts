@@ -29,7 +29,7 @@ export default defineConfig({
       },
     }),
   ],
-  envDir: path.resolve(__dirname, ".."),
+  envDir: process.env.DOCKER_BUILD ? undefined : path.resolve(__dirname, ".."),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
