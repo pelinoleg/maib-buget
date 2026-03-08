@@ -332,7 +332,7 @@ function AppShell() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background safe-top">
+    <div className="min-h-screen bg-background">
       <BnmOfflineBanner />
       <DesktopNav dark={dark} toggle={toggle} hasWarnings={hasWarnings} />
       <MainContent />

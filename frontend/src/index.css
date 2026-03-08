@@ -121,6 +121,7 @@
     }
   body {
     @apply bg-background text-foreground;
+    padding-top: env(safe-area-inset-top, 0px);
     }
   button, [role="button"], a[href], select, summary,
   input[type="button"], input[type="submit"], input[type="reset"],
@@ -179,16 +180,6 @@
   }
   .dark .bg-red-50\/30 {
     background-color: oklch(0.33 0.025 18);
-  }
-
-  /* Safe area top padding for standalone PWA on iPhone */
-  .safe-top {
-    padding-top: env(safe-area-inset-top, 0px) !important;
-  }
-  @media (display-mode: standalone) {
-    .safe-top {
-      padding-top: max(env(safe-area-inset-top, 0px), 47px) !important;
-    }
   }
 
   @media (max-width: 767px) {
