@@ -1,0 +1,26 @@
+# Environment
+.env
+.venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Database & uploads
+*.db
+backend/buget.db
+backend/uploaded_pdfs/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.sw?
+.DS_Store
+
+# PDF samples (large files)
+pdf-stats/

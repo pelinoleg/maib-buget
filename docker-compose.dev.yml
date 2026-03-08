@@ -1,0 +1,35 @@
+# Local development: builds from source
+# Usage: docker compose -f docker-compose.dev.yml up -d --build
+
+services:
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=sqlite:////data/buget.db
+      - UPLOAD_DIR=/data/uploaded_pdfs
+    volumes:
+      - ./data:/data
+    ports:
+      - "8453:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: /api
+        VITE_DEFAULT_PERIOD: ${VITE_DEFAULT_PERIOD:-last_month}
+        VITE_PAGE_SIZE: ${VITE_PAGE_SIZE:-200}
+        VITE_BASE_CURRENCY: ${VITE_BASE_CURRENCY:-EUR}
+    restart: unless-stopped
+    ports:
+      - "8454:80"
+    depends_on:
+      backend:
+        condition: service_healthy

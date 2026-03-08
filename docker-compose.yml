@@ -1,0 +1,33 @@
+# Production: uses pre-built images from ghcr.io
+#
+# Usage on server:
+#   cp .env.example .env  # edit with your keys
+#   docker compose pull
+#   docker compose up -d
+
+services:
+  backend:
+    image: ghcr.io/pelinoleg/maib-buget-backend:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=sqlite:////data/buget.db
+      - UPLOAD_DIR=/data/uploaded_pdfs
+    volumes:
+      - ./data:/data
+    ports:
+      - "8453:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    image: ghcr.io/pelinoleg/maib-buget-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "8454:80"
+    depends_on:
+      backend:
+        condition: service_healthy
