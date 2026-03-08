@@ -181,10 +181,13 @@
     background-color: oklch(0.33 0.025 18);
   }
 
-  /* Safe area padding for PWA standalone mode on iPhone */
-  @supports (padding-top: env(safe-area-inset-top)) {
+  /* Safe area top padding for standalone PWA on iPhone */
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px) !important;
+  }
+  @media (display-mode: standalone) {
     .safe-top {
-      padding-top: env(safe-area-inset-top, 0px) !important;
+      padding-top: max(env(safe-area-inset-top, 0px), 47px) !important;
     }
   }
 
