@@ -332,7 +332,7 @@ function AppShell() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+    <div className="min-h-screen bg-background safe-top">
       <BnmOfflineBanner />
       <DesktopNav dark={dark} toggle={toggle} hasWarnings={hasWarnings} />
       <MainContent />

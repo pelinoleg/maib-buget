@@ -181,7 +181,13 @@
     background-color: oklch(0.33 0.025 18);
   }
 
-  /* Safe area bottom padding for mobile (iPhone notch/home indicator) */
+  /* Safe area padding for PWA standalone mode on iPhone */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    .safe-top {
+      padding-top: env(safe-area-inset-top, 0px) !important;
+    }
+  }
+
   @media (max-width: 767px) {
     .safe-bottom {
       padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
