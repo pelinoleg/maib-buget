@@ -1,7 +1,7 @@
 import { BookOpen, Sparkles } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { applyRules, categorizeWithAI } from "@/lib/api";
+import { applyRules, refreshAICategorization } from "@/lib/api";
 
 interface Props {
   aiStatus: string;
@@ -19,7 +19,7 @@ export default function AutoCategorizeTab({ aiStatus, setAiStatus, reload }: Pro
   const handleAI = async () => {
     setAiStatus("Se categorizează cu AI...");
     try {
-      const result = await categorizeWithAI();
+      const result = await refreshAICategorization();
       if (result.error) {
         setAiStatus(`Eroare: ${result.error}`);
       } else {

@@ -96,14 +96,14 @@ export function exportTransactionsPDF(params: TransactionsPDFParams) {
 
   boxes.forEach((b, i) => {
     const x = 14 + i * (boxW + 4);
-    doc.setFillColor(...b.bg);
+    doc.setFillColor(b.bg[0], b.bg[1], b.bg[2]);
     doc.roundedRect(x, boxY, boxW, boxH, 2, 2, "F");
     doc.setFontSize(7);
     doc.setTextColor(120);
     doc.setFont("helvetica", "normal");
     doc.text(b.label, x + 4, boxY + 5);
     doc.setFontSize(12);
-    doc.setTextColor(...b.color);
+    doc.setTextColor(b.color[0], b.color[1], b.color[2]);
     doc.setFont("helvetica", "bold");
     doc.text(b.value, x + 4, boxY + 12);
   });
@@ -460,14 +460,14 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
 
   boxes.forEach((b, i) => {
     const x = 14 + i * (boxW + 4);
-    doc.setFillColor(...b.bg);
+    doc.setFillColor(b.bg[0], b.bg[1], b.bg[2]);
     doc.roundedRect(x, boxY, boxW, boxH, 2, 2, "F");
     doc.setFontSize(7);
     doc.setTextColor(120);
     doc.setFont("helvetica", "normal");
     doc.text(b.label, x + 4, boxY + 5);
     doc.setFontSize(12);
-    doc.setTextColor(...b.color);
+    doc.setTextColor(b.color[0], b.color[1], b.color[2]);
     doc.setFont("helvetica", "bold");
     doc.text(b.value, x + 4, boxY + 12);
   });
@@ -575,7 +575,6 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     const chartRight = w - 16;
     const chartW = chartRight - chartLeft;
     const barGroupH = 7;
-    const barGap = 2;
     const groupGap = 4;
     const maxMonthVal = Math.max(...months.map((m) => Math.max(m.income, m.expense)), 1);
 

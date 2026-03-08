@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   ArrowUpCircle,
   ArrowDownCircle,
@@ -167,8 +167,6 @@ export default function TransactionList() {
   const hasUrlParams = searchParams.toString() !== "";
   const saved = hasUrlParams ? {} : loadSavedFilters();
   const defaultPreset = (import.meta.env.VITE_DEFAULT_PERIOD || "last_month") as PeriodPresetKey;
-  const defaultDates = computeDatesForPreset(defaultPreset, 0);
-
   const [search, setSearch] = useState(searchParams.get("search") || saved.search || "");
   const [accountFilter, setAccountFilter] = useState(searchParams.get("account_id") || saved.accountFilter || "");
   const [bankFilter, setBankFilter] = useState(searchParams.get("bank") || saved.bankFilter || "");
