@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, Trash2, Check, X, Save, RotateCcw, Loader2, Search } from "lucide-react";
+import { AlertTriangle, Trash2, Check, X, Save, RotateCcw, Loader2, Search, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import {
   resetDatabase,
   getSuspectDuplicates,
 } from "@/lib/api";
+import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
 
 interface CoverageAccount {
@@ -408,7 +409,18 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-
+      {/* API Docs link */}
+      <div className="text-center pb-4">
+        <a
+          href={`${API_BASE.replace(/\/api$/, '')}/api/docs`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ExternalLink className="h-3 w-3" />
+          API Documentation
+        </a>
+      </div>
 
     </div>
   );
