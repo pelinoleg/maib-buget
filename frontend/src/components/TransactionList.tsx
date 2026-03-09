@@ -354,6 +354,9 @@ export default function TransactionList() {
 
   const summCurrLabel = ` ${BASE_CURRENCY}`;
 
+  // Net balance from filtered summary
+  const filteredNet = -sumExpense + sumIncome + sumRefunds;
+
   const [filtersOpen, setFiltersOpen] = useState(false);
   const isDateModified = activePeriodPreset !== defaultPreset || presetOffset !== 0;
   const activeFilterCount = [search, accountFilter, bankFilter, typeFilter, categoryFilter].filter(Boolean).length + (isDateModified ? 1 : 0);
@@ -784,15 +787,11 @@ export default function TransactionList() {
         <CardHeader className="pb-0">
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <CardTitle className="text-base flex items-center gap-2">
+              <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                 <span>{total} tranzacții</span>
                 {(sumExpense > 0 || sumIncome > 0) && (
-                  <span className="text-sm font-normal text-muted-foreground">
-                    <span className="text-red-500 font-medium">−{sumExpense.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</span>
-                    {sumIncome > 0 && (
-                      <> / <span className="text-green-600 font-medium">+{sumIncome.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</span></>
-                    )}
-                    <span className="text-xs ml-0.5">{BASE_CURRENCY}</span>
+                  <span className={`text-sm font-semibold ${filteredNet >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {filteredNet >= 0 ? "+" : ""}{filteredNet.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {BASE_CURRENCY}
                   </span>
                 )}
               </CardTitle>
