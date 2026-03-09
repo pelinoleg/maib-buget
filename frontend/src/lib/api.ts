@@ -201,6 +201,14 @@ export function deleteAccount(id: number) {
   return fetchJSON(`/accounts/${id}`, { method: "DELETE" });
 }
 
+export function mergeAccounts(targetId: number, sourceIds: number[]) {
+  return fetchJSON(`/accounts/${targetId}/merge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ source_ids: sourceIds }),
+  });
+}
+
 // Dashboard
 export function getDashboardSummary(params: Record<string, string | number> = {}) {
   const qs = new URLSearchParams();

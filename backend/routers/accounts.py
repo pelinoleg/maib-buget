@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from database import get_db
-from models import Account, Transaction
+from models import Account, Transaction, Upload
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 
@@ -138,6 +138,56 @@ def update_account(account_id: int, data: AccountUpdate, db: Session = Depends(g
     db.commit()
     db.refresh(acc)
     return {"id": acc.id, "name": acc.name, "description": acc.description, "bank": acc.bank, "account_type": acc.account_type, "is_monitored": bool(acc.is_monitored)}
+
+
+class MergeRequest(BaseModel):
+    source_ids: list[int]
+
+
+@router.post("/{target_id}/merge")
+def merge_accounts(target_id: int, data: MergeRequest, db: Session = Depends(get_db)):
+    target = db.query(Account).get(target_id)
+    if not target:
+        raise HTTPException(404, "Target account not found")
+
+    if target_id in data.source_ids:
+        raise HTTPException(400, "Target account cannot be in source list")
+
+    if not data.source_ids:
+        raise HTTPException(400, "No source accounts provided")
+
+    source_accounts = db.query(Account).filter(Account.id.in_(data.source_ids)).all()
+    if len(source_accounts) != len(data.source_ids):
+        found_ids = {a.id for a in source_accounts}
+        missing = [sid for sid in data.source_ids if sid not in found_ids]
+        raise HTTPException(404, f"Source accounts not found: {missing}")
+
+    for sa in source_accounts:
+        if sa.currency != target.currency:
+            raise HTTPException(400, f"Currency mismatch: account '{sa.name}' has {sa.currency}, target has {target.currency}")
+
+    # Move transactions
+    moved = db.query(Transaction).filter(Transaction.account_id.in_(data.source_ids)).update(
+        {Transaction.account_id: target_id}, synchronize_session="fetch"
+    )
+
+    # Update uploads
+    source_account_numbers = [sa.account_number for sa in source_accounts]
+    db.query(Upload).filter(Upload.account_number.in_(source_account_numbers)).update(
+        {Upload.account_number: target.account_number}, synchronize_session="fetch"
+    )
+
+    # Delete source accounts
+    for sa in source_accounts:
+        db.delete(sa)
+
+    db.commit()
+
+    return {
+        "ok": True,
+        "moved_transactions": moved,
+        "deleted_accounts": len(source_accounts),
+    }
 
 
 @router.delete("/{account_id}")

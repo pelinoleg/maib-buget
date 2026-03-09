@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Wallet, ArrowLeftRight,
-  CreditCard, Pencil, Loader2, Plus, Trash2,
+  CreditCard, Pencil, Loader2, Plus, Trash2, Merge,
   Building2, Banknote, PiggyBank, TrendingUp,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getAccounts, createAccount, updateAccount, deleteAccount } from "@/lib/api";
+import { getAccounts, createAccount, updateAccount, deleteAccount, mergeAccounts } from "@/lib/api";
 
 interface Account {
   id: number;
@@ -71,6 +71,8 @@ export default function AccountsSummary() {
   const [dialogMode, setDialogMode] = useState<DialogMode>(null);
   const [editTarget, setEditTarget] = useState<Account | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Account | null>(null);
+  const [mergeTarget, setMergeTarget] = useState<Account | null>(null);
+  const [mergeSourceIds, setMergeSourceIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -155,6 +157,30 @@ export default function AccountsSummary() {
     }
   };
 
+  const getMergeCandidates = (acc: Account) =>
+    accounts.filter((a) => a.id !== acc.id && a.bank === acc.bank && a.currency === acc.currency);
+
+  const openMerge = (acc: Account) => {
+    setMergeTarget(acc);
+    setMergeSourceIds([]);
+    setError("");
+  };
+
+  const handleMerge = async () => {
+    if (!mergeTarget || mergeSourceIds.length === 0) return;
+    setSaving(true);
+    setError("");
+    try {
+      await mergeAccounts(mergeTarget.id, mergeSourceIds);
+      setMergeTarget(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Eroare la unire");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setSaving(true);
@@ -216,6 +242,11 @@ export default function AccountsSummary() {
                           <button onClick={() => openEdit(acc)}>
                             <Pencil className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                           </button>
+                          {getMergeCandidates(acc).length > 0 && (
+                            <button onClick={() => openMerge(acc)}>
+                              <Merge className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                            </button>
+                          )}
                           {acc.transaction_count === 0 && (
                             <button onClick={() => { setDeleteTarget(acc); setError(""); }}>
                               <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-red-500" />
@@ -348,6 +379,48 @@ export default function AccountsSummary() {
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Anulează</Button>
             <Button variant="destructive" disabled={saving} onClick={handleDelete}>
               {saving ? "Se șterge..." : "Șterge"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge dialog */}
+      <Dialog open={mergeTarget !== null} onOpenChange={(open) => { if (!open) setMergeTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Unește conturile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Cont destinație: <strong className="text-foreground">{mergeTarget?.name}</strong>
+            </p>
+            <p className="text-sm text-muted-foreground">Selectează conturile de unit:</p>
+            <div className="space-y-2">
+              {mergeTarget && getMergeCandidates(mergeTarget).map((candidate) => (
+                <label key={candidate.id} className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-gray-300"
+                    checked={mergeSourceIds.includes(candidate.id)}
+                    onChange={(e) => {
+                      setMergeSourceIds((prev) =>
+                        e.target.checked
+                          ? [...prev, candidate.id]
+                          : prev.filter((id) => id !== candidate.id)
+                      );
+                    }}
+                  />
+                  <span>{candidate.name}</span>
+                  <span className="text-muted-foreground">({candidate.transaction_count} trz.)</span>
+                </label>
+              ))}
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMergeTarget(null)}>Anulează</Button>
+            <Button disabled={saving || mergeSourceIds.length === 0} onClick={handleMerge}>
+              {saving ? "Se unește..." : "Unește"}
             </Button>
           </DialogFooter>
         </DialogContent>
