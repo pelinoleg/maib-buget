@@ -8,7 +8,7 @@
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Buget" />
     <link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg" />
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon/favicon-96x96.png" />
@@ -18,6 +18,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // iOS standalone PWA: add top padding for status bar
+      if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+        document.body.style.paddingTop = 'env(safe-area-inset-top, 47px)';
+        document.body.style.paddingTop = 'constant(safe-area-inset-top, 47px)'; // iOS < 11.2
+        // Fallback if env/constant not supported
+        if (getComputedStyle(document.body).paddingTop === '0px') {
+          document.body.style.paddingTop = '47px';
+        }
+      }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
