@@ -778,7 +778,11 @@ export default function TransactionList() {
             <div className="flex items-center gap-2">
               <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                 <span>{total} tranzacții</span>
-
+                {(sumExpense > 0 || sumIncome > 0) && (
+                  <span className={`hidden text-sm font-semibold ${filteredNet >= 0 ? "text-green-600" : "text-red-500"}`}>
+                    {filteredNet >= 0 ? "+" : ""}{filteredNet.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {BASE_CURRENCY}
+                  </span>
+                )}
               </CardTitle>
               <Link to="/transactions/new" className="hidden md:inline-flex">
                 <Button size="sm" className="gap-1">
