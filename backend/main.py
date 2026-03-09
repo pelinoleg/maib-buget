@@ -150,6 +150,21 @@ def reset_database(db: Session = Depends(get_db)):
     return {"status": "ok", "message": "All data cleared (categories kept)"}
 
 
+@app.delete("/api/bank/{bank_name}/purge")
+def purge_bank_data(bank_name: str, db: Session = Depends(get_db)):
+    """Delete all transactions, uploads, and accounts for a specific bank."""
+    accs = db.query(Account).filter(Account.bank == bank_name).all()
+    if not accs:
+        return {"status": "not_found", "message": f"No accounts found for bank '{bank_name}'"}
+    acc_ids = [a.id for a in accs]
+    acc_numbers = [a.account_number for a in accs]
+    t = db.query(Transaction).filter(Transaction.account_id.in_(acc_ids)).delete(synchronize_session=False)
+    u = db.query(Upload).filter(Upload.account_number.in_(acc_numbers)).delete(synchronize_session=False)
+    a = db.query(Account).filter(Account.id.in_(acc_ids)).delete(synchronize_session=False)
+    db.commit()
+    return {"status": "ok", "deleted_transactions": t, "deleted_uploads": u, "deleted_accounts": a}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
