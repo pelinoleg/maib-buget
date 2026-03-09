@@ -775,7 +775,7 @@ export default function TransactionList() {
       <Card className="gap-2">
         <CardHeader className="pb-0">
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-6 pl-4">
               <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                 <span>{total} tranzacții</span>
                 {(sumExpense > 0 || sumIncome > 0) && (
