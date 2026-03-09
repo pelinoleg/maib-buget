@@ -393,6 +393,14 @@ export function resetAIPrompt() {
   return fetchJSON("/settings/ai-prompt", { method: "DELETE" });
 }
 
+export function saveCoverageStart(coverageStart: string) {
+  return fetchJSON("/settings/coverage-start", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ coverage_start: coverageStart }),
+  });
+}
+
 // Dev
 export function resetDatabase() {
   return fetchJSON("/reset-database", { method: "POST" });

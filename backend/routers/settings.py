@@ -16,20 +16,36 @@ from models import Transaction, Account, ExchangeRate
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
 AI_PROMPT_FILE = Path(__file__).resolve().parent.parent / "ai_prompt.json"
+SETTINGS_FILE = Path(__file__).resolve().parent.parent / "app_settings.json"
 
-# Start month for upload coverage monitoring (env: COVERAGE_START=2026-01)
-_coverage_start = os.getenv("COVERAGE_START", "2026-01")
-COVERAGE_START_YEAR = int(_coverage_start.split("-")[0])
-COVERAGE_START_MONTH = int(_coverage_start.split("-")[1])
+
+def _load_settings() -> dict:
+    if SETTINGS_FILE.exists():
+        try:
+            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return {}
+
+
+def _save_settings(data: dict):
+    SETTINGS_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _get_coverage_start() -> tuple[int, int]:
+    settings = _load_settings()
+    cs = settings.get("coverage_start") or os.getenv("COVERAGE_START", "2025-01")
+    parts = cs.split("-")
+    return int(parts[0]), int(parts[1])
 
 
 @router.get("/upload-coverage")
 def get_upload_coverage(db: Session = Depends(get_db)):
-    """Check which bank/month combinations have transactions loaded (2026+)."""
+    """Check which bank/month combinations have transactions loaded."""
     today = date.today()
-    # Expected months: 2026-01 up to previous completed month
+    cs_year, cs_month = _get_coverage_start()
     expected: list[str] = []
-    y, m = COVERAGE_START_YEAR, COVERAGE_START_MONTH
+    y, m = cs_year, cs_month
     while True:
         if y > today.year or (y == today.year and m >= today.month):
             break
@@ -58,7 +74,7 @@ def get_upload_coverage(db: Session = Depends(get_db)):
                 func.substr(Transaction.transaction_date, 1, 7)
             ).filter(
                 Transaction.account_id == acc.id,
-                Transaction.transaction_date >= f"{COVERAGE_START_YEAR}-{COVERAGE_START_MONTH:02d}-01",
+                Transaction.transaction_date >= f"{cs_year}-{cs_month:02d}-01",
             ).distinct().all()
         )
 
@@ -82,7 +98,36 @@ def get_upload_coverage(db: Session = Depends(get_db)):
 
     result = [{"bank": bank, "accounts": accs} for bank, accs in banks_map.items()]
 
-    return {"banks": result, "has_warnings": has_warnings}
+    cs_year, cs_month = _get_coverage_start()
+    return {"banks": result, "has_warnings": has_warnings, "coverage_start": f"{cs_year}-{cs_month:02d}"}
+
+
+@router.get("/coverage-start")
+def get_coverage_start():
+    y, m = _get_coverage_start()
+    return {"coverage_start": f"{y}-{m:02d}"}
+
+
+class CoverageStartData(BaseModel):
+    coverage_start: str  # "YYYY-MM"
+
+
+@router.put("/coverage-start")
+def set_coverage_start(data: CoverageStartData):
+    parts = data.coverage_start.strip().split("-")
+    if len(parts) != 2:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Format: YYYY-MM")
+    try:
+        int(parts[0])
+        int(parts[1])
+    except ValueError:
+        from fastapi import HTTPException
+        raise HTTPException(400, "Format: YYYY-MM")
+    settings = _load_settings()
+    settings["coverage_start"] = data.coverage_start.strip()
+    _save_settings(settings)
+    return {"status": "ok", "coverage_start": data.coverage_start.strip()}
 
 
 class AIPromptData(BaseModel):

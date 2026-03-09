@@ -11,6 +11,7 @@ import {
   resetAIPrompt,
   resetDatabase,
   getSuspectDuplicates,
+  saveCoverageStart,
 } from "@/lib/api";
 import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
@@ -33,6 +34,8 @@ export default function Settings() {
   const [coverage, setCoverage] = useState<CoverageBank[]>([]);
   const [months, setMonths] = useState<string[]>([]);
   const [hasWarnings, setHasWarnings] = useState(false);
+  const [coverageStart, setCoverageStart] = useState("");
+  const [coverageStartSaving, setCoverageStartSaving] = useState(false);
 
   // Reset DB
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -59,6 +62,7 @@ export default function Settings() {
     getUploadCoverage().then((data) => {
       setCoverage(data.banks);
       setHasWarnings(data.has_warnings);
+      if (data.coverage_start) setCoverageStart(data.coverage_start);
       // Extract unique sorted months from all accounts
       const allMonths = new Set<string>();
       for (const b of data.banks) {
@@ -121,14 +125,43 @@ export default function Settings() {
       {/* Section 1: Upload Coverage */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 flex-wrap">
             Monitorizare încărcări
             {hasWarnings && (
-              <span className="inline-flex items-center gap-1  text-xs font-normal text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-900/30 px-2  py-0.5 rounded-full">
+              <span className="inline-flex items-center gap-1 text-xs font-normal text-amber-600 dark:text-amber-400 bg-amber-100/80 dark:bg-amber-900/30 px-2 py-0.5 rounded-full">
                 <AlertTriangle className="h-3 w-3" />
                 Lipsesc extrase
               </span>
             )}
+            <span className="flex-1" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-normal text-muted-foreground">
+              din
+              <Input
+                type="month"
+                value={coverageStart}
+                onChange={(e) => setCoverageStart(e.target.value)}
+                onBlur={async () => {
+                  if (!coverageStart || coverageStart.length < 7) return;
+                  setCoverageStartSaving(true);
+                  try {
+                    await saveCoverageStart(coverageStart);
+                    const data = await getUploadCoverage();
+                    setCoverage(data.banks);
+                    setHasWarnings(data.has_warnings);
+                    const allMonths = new Set<string>();
+                    for (const b of data.banks) {
+                      for (const acc of b.accounts) {
+                        for (const m of Object.keys(acc.months)) allMonths.add(m);
+                      }
+                    }
+                    setMonths(Array.from(allMonths).sort());
+                  } catch { /* ignore */ }
+                  setCoverageStartSaving(false);
+                }}
+                className="h-7 w-[140px] text-xs"
+                disabled={coverageStartSaving}
+              />
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -412,7 +445,7 @@ export default function Settings() {
       {/* API Docs link */}
       <div className="text-center pb-4">
         <a
-          href={`${API_BASE.replace(/\/api$/, '')}/api/docs`}
+          href={`${API_BASE}/docs`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
