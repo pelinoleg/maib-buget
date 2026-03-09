@@ -39,16 +39,6 @@ const MONTH_NAMES = [
 ];
 
 export const PERIOD_PRESETS: PeriodPreset[] = [
-  // ── All time ──
-  {
-    key: "all_time",
-    label: "Tot timpul",
-    group: "quick",
-    computeDates: () => {
-      return { dateFrom: "", dateTo: "" };
-    },
-    formatLabel: () => "Tot timpul",
-  },
   // ── Quick (rolling) ──
   {
     key: "last_7_days",
@@ -134,6 +124,16 @@ export const PERIOD_PRESETS: PeriodPreset[] = [
       const start = subDays(end, 364);
       return `${format(start, "dd.MM.yy")} — ${format(end, "dd.MM.yy")}`;
     },
+  },
+  // ── All time ──
+  {
+    key: "all_time",
+    label: "Tot timpul",
+    group: "quick",
+    computeDates: () => {
+      return { dateFrom: "", dateTo: "" };
+    },
+    formatLabel: () => "Tot timpul",
   },
 
   // ── Months ──
