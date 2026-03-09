@@ -119,7 +119,7 @@ export default function CategoriesTab({ categories, reload }: Props) {
     return (
       <div
         key={cat.id}
-        className={`group/chip inline-flex items-center rounded-full border transition-colors cursor-default ${
+        className={`group/chip inline-flex items-center rounded-full border-2 transition-colors cursor-default ${
           isParent
             ? "gap-1.5 px-3 py-1 text-sm font-medium hover:opacity-90"
             : level === 1
