@@ -575,7 +575,7 @@ export default function Dashboard() {
 
             return (
               <>
-                <Card className="py-0">
+                <Card className={`py-0 ${summary.total_income === 0 ? "opacity-50 pointer-events-none" : ""}`}>
                   <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
                     <div className="flex items-start gap-1.5 sm:gap-2.5">
                       <div className="p-1 sm:p-1.5 bg-green-100 rounded-md">
@@ -589,7 +589,7 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="py-0">
+                <Card className={`py-0 ${summary.total_expense === 0 ? "opacity-50 pointer-events-none" : ""}`}>
                   <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
                     <div className="flex items-start gap-1.5 sm:gap-2.5">
                       <div className="p-1 sm:p-1.5 bg-red-100 rounded-md">
@@ -603,7 +603,7 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="py-0 hidden sm:block">
+                <Card className={`py-0 hidden sm:block ${summary.total_refunds === 0 ? "opacity-50 pointer-events-none" : ""}`}>
                   <CardContent className="px-4 py-3">
                     <div className="flex items-start gap-2.5">
                       <div className="p-1.5 bg-emerald-100 rounded-md">
@@ -617,7 +617,7 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="py-0 hidden sm:block">
+                <Card className={`py-0 hidden sm:block ${summary.total_transfers === 0 ? "opacity-50 pointer-events-none" : ""}`}>
                   <CardContent className="px-4 py-3">
                     <div className="flex items-start gap-2.5">
                       <div className="p-1.5 bg-blue-100 rounded-md">
@@ -641,21 +641,17 @@ export default function Dashboard() {
         const chartData = drillParent ? drillData : byCategory;
         const grandTotal = chartData.reduce((s, c) => s + c.total, 0);
 
-        const handleCatClick = (cat: CategoryData) => {
-          if (cat.has_children) {
-            drillInto(cat);
-          } else {
-            const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
-            if (dateFrom) params.set("date_from", dateFrom);
-            if (dateTo) params.set("date_to", dateTo);
-            if (accountId) params.set("account_id", accountId);
-            navigate(`/transactions?${params}`);
-          }
+        const navigateToCategory = (cat: CategoryData) => {
+          const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
+          if (dateFrom) params.set("date_from", dateFrom);
+          if (dateTo) params.set("date_to", dateTo);
+          if (accountId) params.set("account_id", accountId);
+          navigate(`/transactions?${params}`);
         };
 
         const handlePieClick = (_: unknown, index: number) => {
           const cat = chartData[index];
-          if (cat) handleCatClick(cat);
+          if (cat?.has_children) drillInto(cat);
         };
 
         return (
@@ -787,7 +783,7 @@ export default function Dashboard() {
                       <div key={cat.category_id ?? "none"}>
                         <div
                           className={`flex items-center gap-2 cursor-pointer group py-0.5 rounded px-1 -mx-1 ${trendCategoryId === cat.category_id ? "bg-accent" : "hover:bg-accent/50"}`}
-                          onClick={() => handleCatClick(cat)}
+                          onClick={() => navigateToCategory(cat)}
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
                           <span className="text-sm truncate group-hover:underline">{cat.name}</span>

@@ -663,7 +663,7 @@ export default function TransactionList() {
 
       {/* Summary — compact row on mobile, cards on desktop */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-        <Card className="py-0">
+        <Card className={`py-0 ${sumIncome === 0 ? "opacity-50 pointer-events-none" : ""}`}>
           <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
             <div className="flex items-start gap-1.5 sm:gap-2.5">
               <div className="p-1 sm:p-1.5 bg-green-100 rounded-md">
@@ -676,7 +676,7 @@ export default function TransactionList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="py-0">
+        <Card className={`py-0 ${sumExpense === 0 ? "opacity-50 pointer-events-none" : ""}`}>
           <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
             <div className="flex items-start gap-1.5 sm:gap-2.5">
               <div className="p-1 sm:p-1.5 bg-red-100 rounded-md">
@@ -689,7 +689,7 @@ export default function TransactionList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="py-0 hidden sm:block">
+        <Card className={`py-0 hidden sm:block ${sumRefunds === 0 ? "opacity-50 pointer-events-none" : ""}`}>
           <CardContent className="px-4 py-3">
             <div className="flex items-start gap-2.5">
               <div className="p-1.5 bg-emerald-100 rounded-md">
@@ -702,7 +702,7 @@ export default function TransactionList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="py-0 hidden sm:block">
+        <Card className={`py-0 hidden sm:block ${sumTransfers === 0 ? "opacity-50 pointer-events-none" : ""}`}>
           <CardContent className="px-4 py-3">
             <div className="flex items-start gap-2.5">
               <div className="p-1.5 bg-blue-100 rounded-md">
