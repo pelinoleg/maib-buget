@@ -128,15 +128,40 @@ def expenses_by_category(
     account_id: Optional[int] = None,
     bank: Optional[str] = None,
     currency: Optional[str] = None,
+    parent_id: Optional[int] = None,
 ):
-    """Expenses grouped by category (for pie chart)."""
+    """Expenses grouped by category (for pie chart).
+
+    Without parent_id: returns top-level view (subcategories rolled up into parents).
+    With parent_id: returns only direct children of that parent (drill-down).
+    """
+    # Build a parent lookup: category_id -> parent_id (for rolling up)
+    all_cats = db.query(Category).all()
+    cat_map = {c.id: c for c in all_cats}
+    # Which parent categories have subcategories?
+    parent_ids_with_children = {c.parent_id for c in all_cats if c.parent_id is not None}
+
+    def _effective_id(cat_id: int | None) -> int | None:
+        """Roll up subcategory to parent when viewing top-level."""
+        if cat_id is None:
+            return None
+        cat = cat_map.get(cat_id)
+        if cat and cat.parent_id is not None and parent_id is None:
+            return cat.parent_id
+        return cat_id
+
     if currency:
-        # Load raw expense transactions, convert, aggregate by category
         q = db.query(Transaction).options(
             joinedload(Transaction.account),
             joinedload(Transaction.category),
         ).filter(Transaction.type == "expense")
         q = _base_filter(q, date_from, date_to, account_id, bank)
+
+        if parent_id is not None:
+            child_ids = [c.id for c in all_cats if c.parent_id == parent_id]
+            # Include transactions assigned directly to the parent too
+            q = q.filter(Transaction.category_id.in_([parent_id] + child_ids))
+
         txns = q.all()
 
         cat_totals: dict[int | None, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": "", "color": ""})
@@ -144,29 +169,32 @@ def expenses_by_category(
         for t in txns:
             cur = t.account.currency if t.account else "MDL"
             converted = _convert(t.amount, cur, currency, t.transaction_date)
-            cat_id = t.category_id
-            cat_totals[cat_id]["total"] += converted
-            cat_totals[cat_id]["count"] += 1
-            if t.category:
-                cat_totals[cat_id]["name"] = t.category.name
-                cat_totals[cat_id]["color"] = t.category.color or "#94a3b8"
+            eff_id = t.category_id if parent_id is not None else _effective_id(t.category_id)
+            cat_totals[eff_id]["total"] += converted
+            cat_totals[eff_id]["count"] += 1
+            cat = cat_map.get(eff_id) if eff_id else None
+            if cat:
+                cat_totals[eff_id]["name"] = cat.name
+                cat_totals[eff_id]["color"] = cat.color or "#94a3b8"
             else:
-                cat_totals[cat_id]["name"] = "Fără categorie"
-                cat_totals[cat_id]["color"] = "#94a3b8"
+                cat_totals[eff_id]["name"] = "Fără categorie"
+                cat_totals[eff_id]["color"] = "#94a3b8"
 
         result = [
-            {"category_id": cat_id, "name": info["name"], "color": info["color"],
-             "total": round(info["total"], 2), "count": info["count"]}
-            for cat_id, info in cat_totals.items()
+            {"category_id": cid, "name": info["name"], "color": info["color"],
+             "total": round(info["total"], 2), "count": info["count"],
+             "has_children": cid in parent_ids_with_children if cid else False}
+            for cid, info in cat_totals.items()
             if info["total"] > 0
         ]
         result.sort(key=lambda x: x["total"], reverse=True)
         return result
 
-    # Native mode — SQL aggregation
+    # Native mode — SQL aggregation (per individual category)
     q = db.query(
         Category.id,
         Category.name,
+        Category.parent_id,
         Category.color,
         func.sum(func.abs(Transaction.amount)).label("total"),
         func.count(Transaction.id).label("count"),
@@ -175,38 +203,65 @@ def expenses_by_category(
     )
     q = _base_filter(q, date_from, date_to, account_id, bank)
 
-    rows = q.group_by(Category.id).order_by(func.sum(func.abs(Transaction.amount)).desc()).all()
+    if parent_id is not None:
+        child_ids = [c.id for c in all_cats if c.parent_id == parent_id]
+        q = q.filter(Category.id.in_([parent_id] + child_ids))
 
-    # Uncategorized
-    uq = db.query(
-        func.sum(func.abs(Transaction.amount)).label("total"),
-        func.count(Transaction.id).label("count"),
-    ).filter(
-        Transaction.type == "expense",
-        Transaction.category_id == None,
-    )
-    if date_from:
-        uq = uq.filter(Transaction.transaction_date >= date_from)
-    if date_to:
-        uq = uq.filter(Transaction.transaction_date <= date_to)
-    if account_id:
-        uq = uq.filter(Transaction.account_id == account_id)
-    uncategorized = uq.first()
+    rows = q.group_by(Category.id).all()
 
-    result = [
-        {"category_id": r.id, "name": r.name, "color": r.color, "total": round(r.total, 2), "count": r.count}
-        for r in rows
-    ]
+    if parent_id is not None:
+        # Drill-down: show each child separately
+        result = [
+            {"category_id": r.id, "name": r.name, "color": r.color or "#94a3b8",
+             "total": round(r.total, 2), "count": r.count, "has_children": False}
+            for r in rows
+        ]
+    else:
+        # Top-level: roll subcategories into parents
+        merged: dict[int | None, dict] = {}
+        for r in rows:
+            eff_id = r.parent_id if r.parent_id is not None else r.id
+            if eff_id not in merged:
+                parent_cat = cat_map.get(eff_id)
+                merged[eff_id] = {
+                    "category_id": eff_id,
+                    "name": parent_cat.name if parent_cat else r.name,
+                    "color": (parent_cat.color if parent_cat else r.color) or "#94a3b8",
+                    "total": 0.0,
+                    "count": 0,
+                    "has_children": eff_id in parent_ids_with_children,
+                }
+            merged[eff_id]["total"] += r.total
+            merged[eff_id]["count"] += r.count
 
-    if uncategorized and uncategorized.total:
-        result.append({
-            "category_id": None,
-            "name": "Fără categorie",
-            "color": "#94a3b8",
-            "total": round(uncategorized.total, 2),
-            "count": uncategorized.count,
-        })
+        result = [
+            {**v, "total": round(v["total"], 2)}
+            for v in merged.values()
+        ]
 
+    # Uncategorized (only at top level)
+    if parent_id is None:
+        uq = db.query(
+            func.sum(func.abs(Transaction.amount)).label("total"),
+            func.count(Transaction.id).label("count"),
+        ).filter(
+            Transaction.type == "expense",
+            Transaction.category_id == None,
+        )
+        uq = _base_filter(uq, date_from, date_to, account_id, bank)
+        uncategorized = uq.first()
+
+        if uncategorized and uncategorized.total:
+            result.append({
+                "category_id": None,
+                "name": "Fără categorie",
+                "color": "#94a3b8",
+                "total": round(uncategorized.total, 2),
+                "count": uncategorized.count,
+                "has_children": False,
+            })
+
+    result.sort(key=lambda x: x["total"], reverse=True)
     return result
 
 

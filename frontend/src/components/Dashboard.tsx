@@ -10,6 +10,7 @@ import {
   X,
   FileDown,
   BarChart3,
+  ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,7 @@ interface CategoryData {
   color: string;
   total: number;
   count: number;
+  has_children?: boolean;
 }
 
 interface MonthData {
@@ -138,6 +140,11 @@ export default function Dashboard() {
     });
   };
 
+  // Category drill-down
+  const [drillParent, setDrillParent] = useState<{ id: number; name: string; color: string } | null>(null);
+  const [drillData, setDrillData] = useState<CategoryData[]>([]);
+  const [drillLoading, setDrillLoading] = useState(false);
+
   // Category trend
   const [trendCategoryId, setTrendCategoryId] = useState<number | null>(null);
   const [trendCategoryName, setTrendCategoryName] = useState("");
@@ -190,12 +197,32 @@ export default function Dashboard() {
     return params;
   };
 
+  const drillInto = async (cat: CategoryData) => {
+    setDrillLoading(true);
+    setDrillParent({ id: cat.category_id!, name: cat.name, color: cat.color });
+    setTrendCategoryId(null);
+    try {
+      const params = baseParams();
+      params.parent_id = cat.category_id!;
+      const data = await getExpensesByCategory(params);
+      setDrillData(data);
+    } catch { setDrillData([]); }
+    setDrillLoading(false);
+  };
+
+  const drillBack = () => {
+    setDrillParent(null);
+    setDrillData([]);
+  };
+
   const reload = () => {
     const params = baseParams();
 
     setLoading(true);
     setPrevSummary(null);
     setPrevByMonth([]);
+    setDrillParent(null);
+    setDrillData([]);
 
     const promises: Promise<unknown>[] = [
       getDashboardSummary(params).then(setSummary),
@@ -543,13 +570,56 @@ export default function Dashboard() {
 
       {/* Expenses by category — donut + legend, full width */}
       {!loading && byCategory.length > 0 && (() => {
-        const grandTotal = byCategory.reduce((s, c) => s + c.total, 0);
+        const chartData = drillParent ? drillData : byCategory;
+        const grandTotal = chartData.reduce((s, c) => s + c.total, 0);
+
+        const handlePieClick = (_: unknown, index: number) => {
+          const cat = chartData[index];
+          if (!cat) return;
+          if (cat.has_children && !drillParent) {
+            drillInto(cat);
+          } else {
+            const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
+            if (dateFrom) params.set("date_from", dateFrom);
+            if (dateTo) params.set("date_to", dateTo);
+            if (accountId) params.set("account_id", accountId);
+            navigate(`/transactions?${params}`);
+          }
+        };
+
+        const handleLegendClick = (cat: CategoryData) => {
+          if (cat.has_children && !drillParent) {
+            drillInto(cat);
+          } else {
+            const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
+            if (dateFrom) params.set("date_from", dateFrom);
+            if (dateTo) params.set("date_to", dateTo);
+            if (accountId) params.set("account_id", accountId);
+            navigate(`/transactions?${params}`);
+          }
+        };
+
         return (
           <Card>
             <CardHeader>
-              <CardTitle>Cheltuieli pe categorii</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                {drillParent ? (
+                  <>
+                    <button onClick={drillBack} className="p-1 -ml-1 rounded hover:bg-accent transition-colors" title="Înapoi">
+                      <ArrowLeft className="h-4 w-4" />
+                    </button>
+                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: drillParent.color }} />
+                    {drillParent.name}
+                  </>
+                ) : (
+                  "Cheltuieli pe categorii"
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent>
+              {drillLoading ? (
+                <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+              ) : (
               <div className="flex flex-col lg:flex-row items-center gap-8">
                 <div className="w-full lg:w-[600px] lg:shrink-0 relative">
                   {/* Mobile chart */}
@@ -557,7 +627,7 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height={340}>
                       <PieChart>
                         <Pie
-                          data={byCategory}
+                          data={chartData}
                           dataKey="total"
                           nameKey="name"
                           cx="50%"
@@ -566,18 +636,9 @@ export default function Dashboard() {
                           outerRadius={145}
                           paddingAngle={1.5}
                           className="cursor-pointer"
-                          onClick={(_: unknown, index: number) => {
-                            const cat = byCategory[index];
-                            if (cat) {
-                              const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
-                              if (dateFrom) params.set("date_from", dateFrom);
-                              if (dateTo) params.set("date_to", dateTo);
-                              if (accountId) params.set("account_id", accountId);
-                              navigate(`/transactions?${params}`);
-                            }
-                          }}
+                          onClick={handlePieClick}
                         >
-                          {byCategory.map((entry, index) => (
+                          {chartData.map((entry, index) => (
                             <Cell key={index} fill={entry.color} />
                           ))}
                         </Pie>
@@ -587,7 +648,7 @@ export default function Dashboard() {
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ height: 340 }}>
                       <div className="text-center">
                         <p className="text-xl font-bold">{fmt(grandTotal)}</p>
-                        <p className="text-[10px] text-muted-foreground">total cheltuieli</p>
+                        <p className="text-[10px] text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
                       </div>
                     </div>
                   </div>
@@ -596,7 +657,7 @@ export default function Dashboard() {
                     <ResponsiveContainer width="100%" height={600}>
                       <PieChart>
                         <Pie
-                          data={byCategory}
+                          data={chartData}
                           dataKey="total"
                           nameKey="name"
                           cx="50%"
@@ -613,18 +674,9 @@ export default function Dashboard() {
                           }
                           labelLine={{ stroke: "var(--muted-foreground)", strokeWidth: 1, strokeOpacity: 0.3 }}
                           className="cursor-pointer"
-                          onClick={(_: unknown, index: number) => {
-                            const cat = byCategory[index];
-                            if (cat) {
-                              const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
-                              if (dateFrom) params.set("date_from", dateFrom);
-                              if (dateTo) params.set("date_to", dateTo);
-                              if (accountId) params.set("account_id", accountId);
-                              navigate(`/transactions?${params}`);
-                            }
-                          }}
+                          onClick={handlePieClick}
                         >
-                          {byCategory.map((entry, index) => (
+                          {chartData.map((entry, index) => (
                             <Cell key={index} fill={entry.color} />
                           ))}
                         </Pie>
@@ -634,28 +686,23 @@ export default function Dashboard() {
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="text-center">
                         <p className="text-2xl font-bold">{fmt(grandTotal)}</p>
-                        <p className="text-xs text-muted-foreground">total cheltuieli</p>
+                        <p className="text-xs text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
-                  {byCategory.map((cat) => {
+                  {chartData.map((cat) => {
                     const pct = grandTotal > 0 ? (cat.total / grandTotal) * 100 : 0;
                     return (
                       <div key={cat.category_id ?? "none"}>
                         <div
                           className={`flex items-center gap-2 cursor-pointer group py-0.5 rounded px-1 -mx-1 ${trendCategoryId === cat.category_id ? "bg-accent" : "hover:bg-accent/50"}`}
-                          onClick={() => {
-                            const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
-                            if (dateFrom) params.set("date_from", dateFrom);
-                            if (dateTo) params.set("date_to", dateTo);
-                            if (accountId) params.set("account_id", accountId);
-                            navigate(`/transactions?${params}`);
-                          }}
+                          onClick={() => handleLegendClick(cat)}
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
                           <span className="text-sm truncate group-hover:underline">{cat.name}</span>
+                          {cat.has_children && !drillParent && <span className="text-[10px] text-muted-foreground/60">▸</span>}
                           <span className="ml-auto text-sm font-mono tabular-nums shrink-0">{fmt(cat.total)}{currLabel}</span>
                           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{pct.toFixed(0)}%</span>
                           {cat.category_id != null ? (
@@ -702,6 +749,7 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
+              )}
             </CardContent>
           </Card>
         );
