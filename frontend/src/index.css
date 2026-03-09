@@ -121,7 +121,6 @@
     }
   body {
     @apply bg-background text-foreground;
-    padding-top: env(safe-area-inset-top, 0px);
     }
   button, [role="button"], a[href], select, summary,
   input[type="button"], input[type="submit"], input[type="reset"],
