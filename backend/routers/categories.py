@@ -27,12 +27,14 @@ class RuleCreate(BaseModel):
     pattern: str
     category_id: int
     match_type: str = "contains"  # "contains" or "regex"
+    priority: int = 1  # 1-10
 
 
 class RuleUpdate(BaseModel):
     pattern: Optional[str] = None
     category_id: Optional[int] = None
     match_type: Optional[str] = None
+    priority: Optional[int] = None
 
 
 class RuleBulkApprove(BaseModel):
@@ -133,7 +135,7 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
 def list_rules(db: Session = Depends(get_db)):
     rules = db.query(CategoryRule).filter(CategoryRule.is_approved == True).all()
     return [
-        {"id": r.id, "pattern": r.pattern, "category_id": r.category_id, "category_name": r.category.name, "match_type": r.match_type or "contains"}
+        {"id": r.id, "pattern": r.pattern, "category_id": r.category_id, "category_name": r.category.name, "match_type": r.match_type or "contains", "priority": r.priority or 1}
         for r in rules
     ]
 
@@ -231,7 +233,7 @@ def sample_transactions_for_rule(rule_id: int, db: Session = Depends(get_db)):
 
 @router.post("/rules")
 def create_rule(data: RuleCreate, db: Session = Depends(get_db)):
-    rule = CategoryRule(pattern=data.pattern, category_id=data.category_id, match_type=data.match_type, is_approved=True)
+    rule = CategoryRule(pattern=data.pattern, category_id=data.category_id, match_type=data.match_type, priority=data.priority, is_approved=True)
     db.add(rule)
     db.commit()
 
@@ -255,7 +257,7 @@ def create_rule(data: RuleCreate, db: Session = Depends(get_db)):
         ).update({"category_id": data.category_id}, synchronize_session=False)
     db.commit()
 
-    return {"id": rule.id, "pattern": rule.pattern, "match_type": rule.match_type, "applied_to": count}
+    return {"id": rule.id, "pattern": rule.pattern, "match_type": rule.match_type, "priority": rule.priority or 1, "applied_to": count}
 
 
 @router.patch("/rules/{rule_id}")
@@ -269,8 +271,10 @@ def update_rule(rule_id: int, data: RuleUpdate, db: Session = Depends(get_db)):
         rule.category_id = data.category_id
     if data.match_type is not None:
         rule.match_type = data.match_type
+    if data.priority is not None:
+        rule.priority = data.priority
     db.commit()
-    return {"id": rule.id, "pattern": rule.pattern, "category_id": rule.category_id, "match_type": rule.match_type or "contains"}
+    return {"id": rule.id, "pattern": rule.pattern, "category_id": rule.category_id, "match_type": rule.match_type or "contains", "priority": rule.priority or 1}
 
 
 @router.post("/rules/{rule_id}/approve")

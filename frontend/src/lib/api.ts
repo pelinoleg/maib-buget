@@ -128,7 +128,7 @@ export function getCategoryRules() {
   return fetchJSON("/categories/rules");
 }
 
-export function createCategoryRule(data: { pattern: string; category_id: number; match_type?: string }) {
+export function createCategoryRule(data: { pattern: string; category_id: number; match_type?: string; priority?: number }) {
   return fetchJSON("/categories/rules", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -136,7 +136,7 @@ export function createCategoryRule(data: { pattern: string; category_id: number;
   });
 }
 
-export function updateCategoryRule(id: number, data: { pattern?: string; category_id?: number; match_type?: string }) {
+export function updateCategoryRule(id: number, data: { pattern?: string; category_id?: number; match_type?: string; priority?: number }) {
   return fetchJSON(`/categories/rules/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

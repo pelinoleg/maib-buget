@@ -44,6 +44,7 @@ class CategoryRule(Base):
     pattern = Column(String, nullable=False, index=True)
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     match_type = Column(String, default="contains")  # "contains" or "regex"
+    priority = Column(Integer, default=1)  # 1-10, higher wins when multiple rules match
     is_approved = Column(Boolean, default=True)
     source_example = Column(String, nullable=True)  # example transaction description
 

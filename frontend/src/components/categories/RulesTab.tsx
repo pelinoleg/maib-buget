@@ -32,19 +32,22 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
   const [newPattern, setNewPattern] = useState("");
   const [ruleCategory, setRuleCategory] = useState("");
   const [newMatchType, setNewMatchType] = useState<"contains" | "regex">("contains");
+  const [newPriority, setNewPriority] = useState(1);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [editRulePattern, setEditRulePattern] = useState("");
   const [editRuleCategoryId, setEditRuleCategoryId] = useState("");
   const [editMatchType, setEditMatchType] = useState<"contains" | "regex">("contains");
+  const [editPriority, setEditPriority] = useState(1);
   const [selectedRules, setSelectedRules] = useState<Set<number>>(new Set());
   const [mergeCategoryId, setMergeCategoryId] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
   const handleCreateRule = async () => {
     if (!newPattern.trim() || !ruleCategory) return;
-    const result = await createCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory), match_type: newMatchType });
+    const result = await createCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory), match_type: newMatchType, priority: newPriority });
     setNewPattern("");
     setNewMatchType("contains");
+    setNewPriority(1);
     setShowAddForm(false);
     setAiStatus(`Regulă creată. Aplicată la ${result.applied_to} tranzacții.`);
     reload();
@@ -55,6 +58,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
     setEditRulePattern(r.pattern);
     setEditRuleCategoryId(String(r.category_id));
     setEditMatchType((r.match_type as "contains" | "regex") || "contains");
+    setEditPriority(r.priority || 1);
   };
 
   const saveEditRule = async () => {
@@ -63,6 +67,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
       pattern: editRulePattern,
       category_id: parseInt(editRuleCategoryId),
       match_type: editMatchType,
+      priority: editPriority,
     });
     setEditingRuleId(null);
     reload();
@@ -235,12 +240,21 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                   <CategorySelectItems categories={categories} />
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-1 shrink-0" title="Prioritate (1-10)">
+                <span className="text-[10px] text-muted-foreground">P</span>
+                <Input
+                  type="number" min={1} max={10}
+                  value={newPriority}
+                  onChange={(e) => setNewPriority(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                  className="h-8 w-12 text-xs text-center px-1"
+                />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleCreateRule} disabled={!newPattern.trim() || !ruleCategory}>
                 <Plus className="h-3.5 w-3.5 mr-1" /> Adaugă
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => { setShowAddForm(false); setNewPattern(""); }}>
+              <Button variant="ghost" size="sm" onClick={() => { setShowAddForm(false); setNewPattern(""); setNewPriority(1); }}>
                 Anulează
               </Button>
             </div>
@@ -316,6 +330,13 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                         <CategorySelectItems categories={categories} />
                       </SelectContent>
                     </Select>
+                    <Input
+                      type="number" min={1} max={10}
+                      value={editPriority}
+                      onChange={(e) => setEditPriority(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                      className="h-6 w-9 text-[10px] text-center px-0.5"
+                      title="Prioritate"
+                    />
                     <button onClick={saveEditRule} className="p-0.5"><Check className="h-3.5 w-3.5 text-green-600" /></button>
                     <button onClick={() => setEditingRuleId(null)} className="p-0.5"><X className="h-3.5 w-3.5" /></button>
                   </div>
@@ -335,6 +356,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                     />
                     {r.match_type === "regex" && <span className="text-[9px] text-violet-600 dark:text-violet-400 font-semibold">.*</span>}
                     <span>{r.pattern}</span>
+                    {(r.priority ?? 1) > 1 && <span className="text-[9px] text-amber-600 dark:text-amber-400 font-semibold" title={`Prioritate ${r.priority}`}>P{r.priority}</span>}
                     <span className="inline-flex items-center gap-0.5">
                       <button onClick={() => startEditRule(r)} className="p-0.5 rounded hover:bg-accent">
                         <Pencil className="h-2.5 w-2.5 text-muted-foreground hover:text-foreground" />

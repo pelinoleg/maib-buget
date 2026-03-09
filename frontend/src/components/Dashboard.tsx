@@ -100,7 +100,7 @@ function PieTooltip({ active, payload }: any) {
   const val = d.total as number;
   const pct = entry.percent ?? d.percent;
   return (
-    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm">
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm z-10">
       <div className="flex items-center gap-2 mb-0.5">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
         <span className="font-medium">{d.name}</span>
@@ -117,7 +117,7 @@ function PieTooltip({ active, payload }: any) {
 function ChartTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm">
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm z-10">
       {label && <p className="text-xs text-muted-foreground mb-1">{label}</p>}
       {payload.map((p: any, i: number) => (
         <div key={i} className="flex items-center gap-2">

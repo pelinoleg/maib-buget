@@ -31,6 +31,10 @@ if "category_rules" in insp.get_table_names():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE category_rules ADD COLUMN match_type TEXT DEFAULT 'contains'"))
             conn.commit()
+    if "priority" not in cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE category_rules ADD COLUMN priority INTEGER DEFAULT 1"))
+            conn.commit()
 
 # Migrate: add description column to accounts if missing
 if "accounts" in insp.get_table_names():

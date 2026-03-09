@@ -14,6 +14,8 @@ def apply_rules(db: Session, transactions: list[Transaction] = None):
     rules = db.query(CategoryRule).filter(CategoryRule.is_approved == True).all()
     if not rules:
         return 0
+    # Sort by priority descending — highest priority wins when multiple rules match
+    rules.sort(key=lambda r: r.priority or 1, reverse=True)
 
     if transactions is None:
         transactions = db.query(Transaction).filter(Transaction.category_id == None).all()
@@ -21,17 +23,19 @@ def apply_rules(db: Session, transactions: list[Transaction] = None):
     count = 0
     for txn in transactions:
         desc = txn.description
+        best_rule = None
         for rule in rules:
+            matched = False
             if rule.match_type == "regex":
-                if re.search(rule.pattern, desc, re.IGNORECASE):
-                    txn.category_id = rule.category_id
-                    count += 1
-                    break
+                matched = bool(re.search(rule.pattern, desc, re.IGNORECASE))
             else:
-                if rule.pattern.lower() in desc.lower():
-                    txn.category_id = rule.category_id
-                    count += 1
-                    break
+                matched = rule.pattern.lower() in desc.lower()
+            if matched:
+                best_rule = rule
+                break  # rules already sorted by priority, first match is best
+        if best_rule:
+            txn.category_id = best_rule.category_id
+            count += 1
 
     db.commit()
     return count

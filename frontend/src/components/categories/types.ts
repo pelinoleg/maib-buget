@@ -24,6 +24,7 @@ export interface Rule {
   category_id: number;
   category_name: string;
   match_type?: string; // "contains" or "regex"
+  priority?: number; // 1-10, higher wins
   source_example?: string;
   match_count?: number;
 }
