@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from "react-router-dom";
-import { LayoutDashboard, List, Upload, Tags, Wallet, Loader2, FileText, Moon, Sun, Sparkles, Settings2, Menu, X, ArrowUpDown, GitCompareArrows, Plus } from "lucide-react";
+import { LayoutDashboard, List, Upload, Tags, Wallet, Loader2, FileText, Moon, Sun, Sparkles, Settings2, Menu, X, ArrowUpDown, GitCompareArrows, Plus, ClipboardCheck } from "lucide-react";
 import { applyAccent } from "./lib/accent";
 import Dashboard from "./components/Dashboard";
 import TransactionList from "./components/TransactionList";
@@ -10,6 +10,7 @@ import AccountsSummary from "./components/AccountsSummary";
 import TaxDeclaration from "./components/TaxDeclaration";
 import AIAnalysis from "./components/AIAnalysis";
 import Settings from "./components/Settings";
+import UploadCoverage from "./components/UploadCoverage";
 import CompareExpenses from "./components/CompareExpenses";
 import ExchangeRates from "./components/ExchangeRates";
 import BnmOfflineBanner from "./components/BnmOfflineBanner";
@@ -28,6 +29,7 @@ const navItems = [
 
 const desktopMenuItems = [
   { to: "/upload", icon: Upload, label: "Încărcare PDF" },
+  { to: "/coverage", icon: ClipboardCheck, label: "Monitorizare" },
   { to: "/accounts", icon: Wallet, label: "Conturi" },
   { to: "/rates", icon: ArrowUpDown, label: "Cursuri BNM" },
   { to: "/tax", icon: FileText, label: "Declarație fiscală" },
@@ -45,6 +47,7 @@ const mobileTabItems = [
 
 const mobileMenuItems = [
   { to: "/upload", icon: Upload, label: "Încărcare PDF", color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/15" },
+  { to: "/coverage", icon: ClipboardCheck, label: "Monitorizare", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-500/15" },
   { to: "/accounts", icon: Wallet, label: "Conturi", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/15" },
   { to: "/rates", icon: ArrowUpDown, label: "Cursuri BNM", color: "text-teal-600 dark:text-teal-400", bg: "bg-teal-500/15" },
   { to: "/tax", icon: FileText, label: "Declarație fiscală", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/15" },
@@ -114,7 +117,7 @@ function DesktopNav({ dark, toggle, hasWarnings }: { dark: boolean; toggle: () =
         {/* Coverage warning badge */}
         {hasWarnings && (
           <NavLink
-            to="/settings"
+            to="/coverage"
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-950/60 transition-colors text-xs font-medium"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
@@ -154,7 +157,7 @@ function DesktopNav({ dark, toggle, hasWarnings }: { dark: boolean; toggle: () =
                   >
                     <item.icon className="h-4 w-4 text-muted-foreground" />
                     {item.label}
-                    {item.to === "/settings" && hasWarnings && (
+                    {item.to === "/coverage" && hasWarnings && (
                       <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse ml-auto" />
                     )}
                   </NavLink>
@@ -295,6 +298,7 @@ function MainContent() {
         <Route path="/analysis" element={<AIAnalysis />} />
         <Route path="/compare" element={<CompareExpenses />} />
         <Route path="/rates" element={<ExchangeRates />} />
+        <Route path="/coverage" element={<UploadCoverage />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
     </main>
