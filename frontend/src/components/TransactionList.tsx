@@ -469,23 +469,23 @@ export default function TransactionList() {
       </div>
 
       {/* Date range */}
-      <div className="grid grid-cols-2 gap-2">
-        <div>
+      <div className="grid grid-cols-2 gap-2 overflow-hidden">
+        <div className="min-w-0">
           <label className="text-[10px] text-muted-foreground">De la</label>
           <Input
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setActivePeriodPreset(null); setPresetOffset(0); setPage(0); }}
-            className={`${isDateModified ? "filter-active" : ""}`}
+            className={`w-full ${isDateModified ? "filter-active" : ""}`}
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-[10px] text-muted-foreground">Până la</label>
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setActivePeriodPreset(null); setPresetOffset(0); setPage(0); }}
-            className={`${isDateModified ? "filter-active" : ""}`}
+            className={`w-full ${isDateModified ? "filter-active" : ""}`}
           />
         </div>
       </div>

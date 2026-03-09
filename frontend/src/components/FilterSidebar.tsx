@@ -101,7 +101,7 @@ export default function FilterSidebar({ children, activeFilterCount, open, onOpe
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-[320px] sm:w-[380px] overflow-y-auto">
+      <SheetContent side="right" className="w-[85vw] max-w-[380px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Filtre</SheetTitle>
         </SheetHeader>
