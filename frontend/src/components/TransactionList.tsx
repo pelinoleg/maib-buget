@@ -58,7 +58,6 @@ import {
   getTransactions,
   getAccounts,
   getCategories,
-  getDashboardSummary,
   updateTransactionCategory,
   updateTransactionNote,
   deleteTransaction,
@@ -257,23 +256,13 @@ export default function TransactionList() {
       }
 
       setLoading(true);
-      const summaryParams: Record<string, string | number> = { currency: BASE_CURRENCY };
-      if (dateFrom) summaryParams.date_from = dateFrom;
-      if (dateTo) summaryParams.date_to = dateTo;
-      if (accountFilter) summaryParams.account_id = accountFilter;
-      if (bankFilter) summaryParams.bank = bankFilter;
-      if (typeFilter) summaryParams.type = typeFilter;
-      if (categoryFilter) summaryParams.category_id = categoryFilter;
-      Promise.all([
-        getTransactions(params),
-        getDashboardSummary(summaryParams),
-      ]).then(([data, summary]) => {
+      getTransactions(params).then((data) => {
         setTransactions(data.transactions);
         setTotal(data.total);
-        setSumIncome(summary.total_income);
-        setSumExpense(summary.total_expense);
-        setSumTransfers(summary.total_transfers);
-        setSumRefunds(summary.total_refunds || 0);
+        setSumIncome(data.sum_income ?? 0);
+        setSumExpense(Math.abs(data.sum_expense ?? 0));
+        setSumTransfers(data.sum_transfers ?? 0);
+        setSumRefunds(data.sum_refunds ?? 0);
       }).finally(() => setLoading(false));
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
