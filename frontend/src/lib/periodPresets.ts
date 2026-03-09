@@ -45,7 +45,7 @@ export const PERIOD_PRESETS: PeriodPreset[] = [
     label: "Tot timpul",
     group: "quick",
     computeDates: () => {
-      return { dateFrom: "2000-01-01", dateTo: fmt(new Date()) };
+      return { dateFrom: "", dateTo: "" };
     },
     formatLabel: () => "Tot timpul",
   },
