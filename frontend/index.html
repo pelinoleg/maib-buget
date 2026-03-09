@@ -19,14 +19,8 @@
   <body>
     <div id="root"></div>
     <script>
-      // iOS standalone PWA: add top padding for status bar
       if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
-        document.body.style.paddingTop = 'env(safe-area-inset-top, 47px)';
-        document.body.style.paddingTop = 'constant(safe-area-inset-top, 47px)'; // iOS < 11.2
-        // Fallback if env/constant not supported
-        if (getComputedStyle(document.body).paddingTop === '0px') {
-          document.body.style.paddingTop = '47px';
-        }
+        document.documentElement.classList.add('pwa-standalone');
       }
     </script>
     <script type="module" src="/src/main.tsx"></script>

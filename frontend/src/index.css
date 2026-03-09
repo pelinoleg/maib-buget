@@ -181,6 +181,17 @@
     background-color: oklch(0.33 0.025 18);
   }
 
+  /* PWA standalone on iOS: status bar overlaps content */
+  :root.pwa-standalone {
+    --sat: 47px;
+  }
+  .pwa-standalone body {
+    padding-top: var(--sat) !important;
+  }
+  .pwa-standalone [data-slot="sheet-content"] {
+    padding-top: var(--sat) !important;
+  }
+
   @media (max-width: 767px) {
     .safe-bottom {
       padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;

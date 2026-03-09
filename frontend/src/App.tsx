@@ -195,7 +195,7 @@ function MobileBottomNav({ dark, toggle, hasWarnings }: { dark: boolean; toggle:
     <>
       {/* Fullscreen menu */}
       {menuOpen && (
-        <div className="fixed inset-0 z-40 md:hidden bg-background/95 backdrop-blur-sm flex flex-col" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className="fixed inset-0 z-40 md:hidden bg-background/95 backdrop-blur-sm flex flex-col" style={{ paddingTop: "var(--sat, 0px)" }}>
           <div className="flex-1 flex flex-col justify-center px-6 pb-20">
             <div className="space-y-2">
               {mobileMenuItems.map((item) => (
