@@ -91,6 +91,47 @@ interface Account {
 }
 
 const BASE_CURRENCY = import.meta.env.VITE_BASE_CURRENCY || "EUR";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function PieTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const entry = payload[0];
+  const d = entry.payload;
+  const val = d.total as number;
+  const pct = entry.percent ?? d.percent;
+  return (
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm">
+      <div className="flex items-center gap-2 mb-0.5">
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
+        <span className="font-medium">{d.name}</span>
+      </div>
+      <div className="text-muted-foreground text-xs flex items-baseline gap-1.5">
+        <span className="font-semibold text-foreground">
+          {val.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_CURRENCY}
+        </span>
+        {pct != null && <span>({(pct * 100).toFixed(1)}%)</span>}
+      </div>
+    </div>
+  );
+}
+function ChartTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="rounded-lg border bg-popover/95 backdrop-blur-sm px-3 py-2 shadow-lg text-sm">
+      {label && <p className="text-xs text-muted-foreground mb-1">{label}</p>}
+      {payload.map((p: any, i: number) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
+          <span className="text-xs text-muted-foreground">{p.name}:</span>
+          <span className="font-medium text-xs">
+            {(p.value as number).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_CURRENCY}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 const DASH_LS_KEY = "dash_filters";
 
 function loadDashFilters() {
@@ -687,10 +728,10 @@ export default function Dashboard() {
                           onClick={handlePieClick}
                         >
                           {chartData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} />
+                            <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number | undefined) => value != null ? `${fmt(value)}${currLabel}` : ""} />
+                        <Tooltip content={<PieTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ height: 340 }}>
@@ -725,10 +766,10 @@ export default function Dashboard() {
                           onClick={handlePieClick}
                         >
                           {chartData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} />
+                            <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
                           ))}
                         </Pie>
-                        <Tooltip formatter={(value: number | undefined) => value != null ? `${fmt(value)}${currLabel}` : ""} />
+                        <Tooltip content={<PieTooltip />} />
                       </PieChart>
                     </ResponsiveContainer>
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -786,7 +827,7 @@ export default function Dashboard() {
                           <LineChart data={trendData}>
                             <XAxis dataKey="month" tick={{ fontSize: 10 }} />
                             <YAxis tick={{ fontSize: 10 }} width={50} />
-                            <Tooltip formatter={(v: number | undefined) => v != null ? `${fmt(v)}${currLabel}` : ""} />
+                            <Tooltip content={<ChartTooltip />} />
                             <Line type="monotone" dataKey="total" stroke={trendCategoryColor} strokeWidth={2} dot={{ r: 3 }} />
                           </LineChart>
                         </ResponsiveContainer>
@@ -836,7 +877,7 @@ export default function Dashboard() {
                 >
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(value: number | undefined, name?: string) => value != null ? [`${fmt(value)}${currLabel}`, name ?? ""] : ""} />
+                  <Tooltip content={<ChartTooltip />} />
                   <Legend content={() => (
                     <div className="flex items-center justify-center gap-4 mt-2 text-sm">
                       <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#22c55e" }} />Venituri</span>

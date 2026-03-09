@@ -192,6 +192,13 @@
     padding-top: var(--sat) !important;
   }
 
+  /* Remove focus outline on pie chart sectors */
+  .recharts-sector,
+  .recharts-sector:focus,
+  .recharts-pie-sector path {
+    outline: none !important;
+  }
+
   @media (max-width: 767px) {
     .safe-bottom {
       padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
