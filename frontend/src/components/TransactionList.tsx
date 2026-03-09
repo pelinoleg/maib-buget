@@ -469,8 +469,8 @@ export default function TransactionList() {
       </div>
 
       {/* Date range */}
-      <div className="grid grid-cols-2 gap-2 overflow-hidden">
-        <div className="min-w-0">
+      <div className="space-y-2">
+        <div>
           <label className="text-[10px] text-muted-foreground">De la</label>
           <Input
             type="date"
@@ -479,7 +479,7 @@ export default function TransactionList() {
             className={`w-full ${isDateModified ? "filter-active" : ""}`}
           />
         </div>
-        <div className="min-w-0">
+        <div>
           <label className="text-[10px] text-muted-foreground">Până la</label>
           <Input
             type="date"
