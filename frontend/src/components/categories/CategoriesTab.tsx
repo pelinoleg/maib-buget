@@ -154,7 +154,7 @@ export default function CategoriesTab({ categories, reload }: Props) {
     return (
       <div className={`flex flex-wrap gap-1.5 ${level === 1 ? "ml-4" : "ml-8"}`}>
         {subs.map((sub) => (
-          <div key={sub.id} className="inline-flex flex-col gap-1">
+          <div key={sub.id} className="inline-flex flex-col gap-1 items-start">
             {renderChip(sub, level)}
             {sub.subcategories && sub.subcategories.length > 0 && level === 1 && (
               <div className="flex flex-wrap gap-1.5 ml-4">
