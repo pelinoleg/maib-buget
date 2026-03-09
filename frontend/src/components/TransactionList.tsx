@@ -38,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategorySelectItems } from "@/components/categories/CategorySelect";
 import {
   Table,
   TableBody,
@@ -108,7 +109,7 @@ interface Category {
   name: string;
   color: string;
   parent_id: number | null;
-  subcategories?: { id: number; name: string; color: string }[];
+  subcategories?: Category[];
 }
 
 const TYPE_OPTIONS = [
@@ -573,24 +574,7 @@ export default function TransactionList() {
             <SelectContent>
               <SelectItem value="all">Toate categoriile</SelectItem>
               <SelectItem value="none">Fără categorie</SelectItem>
-              {categories.filter(c => !c.parent_id).map((c) => (
-                <div key={c.id}>
-                  <SelectItem value={String(c.id)}>
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                  {c.subcategories?.map((s: { id: number; name: string; color: string }) => (
-                    <SelectItem key={s.id} value={String(s.id)} className="pl-7">
-                      <span className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        {s.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </div>
-              ))}
+              <CategorySelectItems categories={categories.filter(c => !c.parent_id) as any} />
             </SelectContent>
           </Select>
         </div>
@@ -1078,24 +1062,7 @@ export default function TransactionList() {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">Fără categorie</SelectItem>
-                              {categories.filter(c => !c.parent_id).map((c) => (
-                                <div key={c.id}>
-                                  <SelectItem value={String(c.id)}>
-                                    <span className="flex items-center gap-2">
-                                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                                      {c.name}
-                                    </span>
-                                  </SelectItem>
-                                  {c.subcategories?.map((s: { id: number; name: string; color: string }) => (
-                                    <SelectItem key={s.id} value={String(s.id)} className="pl-7">
-                                      <span className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                                        {s.name}
-                                      </span>
-                                    </SelectItem>
-                                  ))}
-                                </div>
-                              ))}
+                              <CategorySelectItems categories={categories.filter(c => !c.parent_id) as any} />
                             </SelectContent>
                           </Select>
                         )}
@@ -1268,24 +1235,7 @@ export default function TransactionList() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Fără categorie</SelectItem>
-                    {categories.filter(c => !c.parent_id).map((c) => (
-                      <div key={c.id}>
-                        <SelectItem value={String(c.id)}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                            {c.name}
-                          </span>
-                        </SelectItem>
-                        {c.subcategories?.map((s: { id: number; name: string; color: string }) => (
-                          <SelectItem key={s.id} value={String(s.id)} className="pl-7">
-                            <span className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                              {s.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
+                    <CategorySelectItems categories={categories.filter(c => !c.parent_id) as any} />
                   </SelectContent>
                 </Select>
               </div>
@@ -1442,24 +1392,7 @@ export default function TransactionList() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Fără categorie</SelectItem>
-                    {categories.filter(c => !c.parent_id).map((c) => (
-                      <div key={c.id}>
-                        <SelectItem value={String(c.id)}>
-                          <span className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
-                            {c.name}
-                          </span>
-                        </SelectItem>
-                        {c.subcategories?.map((s: { id: number; name: string; color: string }) => (
-                          <SelectItem key={s.id} value={String(s.id)} className="pl-7">
-                            <span className="flex items-center gap-2">
-                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-                              {s.name}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </div>
-                    ))}
+                    <CategorySelectItems categories={categories.filter(c => !c.parent_id) as any} />
                   </SelectContent>
                 </Select>
               </div>

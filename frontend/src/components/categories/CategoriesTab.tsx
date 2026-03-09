@@ -36,13 +36,20 @@ export default function CategoriesTab({ categories, reload }: Props) {
   const [editCatColor, setEditCatColor] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Build flat list of possible parents (top-level + their children, max depth 2 for parent selection = 3 levels total)
+  // Build flat list of possible parents recursively (supports 3+ levels)
   const parentOptions: { id: number; label: string; depth: number }[] = [];
+  const buildParentOptions = (subs: SubCategory[], prefix: string, depth: number) => {
+    for (const sub of subs) {
+      const label = prefix ? `${prefix} › ${sub.name}` : sub.name;
+      parentOptions.push({ id: sub.id, label, depth });
+      if (sub.subcategories?.length) {
+        buildParentOptions(sub.subcategories, label, depth + 1);
+      }
+    }
+  };
   for (const cat of categories) {
     parentOptions.push({ id: cat.id, label: cat.name, depth: 0 });
-    for (const sub of cat.subcategories) {
-      parentOptions.push({ id: sub.id, label: `${cat.name} › ${sub.name}`, depth: 1 });
-    }
+    buildParentOptions(cat.subcategories, cat.name, 1);
   }
 
   const handleCreate = async () => {

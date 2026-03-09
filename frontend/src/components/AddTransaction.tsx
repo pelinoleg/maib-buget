@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CategorySelectItems } from "@/components/categories/CategorySelect";
 import { getAccounts, getCategories, createTransaction } from "@/lib/api";
 
 interface Account {
@@ -65,7 +66,6 @@ export default function AddTransaction() {
   }, []);
 
   const selectedAccount = accounts.find((a) => String(a.id) === accountId) || null;
-  const parentCategories = categories.filter((c) => !c.parent_id);
   const bankGroups = accounts.reduce<Record<string, Account[]>>((acc, a) => {
     const bank = a.bank || "other";
     (acc[bank] ??= []).push(a);
@@ -217,33 +217,7 @@ export default function AddTransaction() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Fără categorie</SelectItem>
-                    {parentCategories.map((cat) => {
-                      const subs = categories.filter((c) => c.parent_id === cat.id);
-                      return (
-                        <SelectGroup key={cat.id}>
-                          <SelectItem value={String(cat.id)}>
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="w-2.5 h-2.5 rounded-full shrink-0"
-                                style={{ backgroundColor: cat.color }}
-                              />
-                              {cat.name}
-                            </span>
-                          </SelectItem>
-                          {subs.map((sub) => (
-                            <SelectItem key={sub.id} value={String(sub.id)}>
-                              <span className="flex items-center gap-2 pl-4">
-                                <span
-                                  className="w-2 h-2 rounded-full shrink-0"
-                                  style={{ backgroundColor: sub.color }}
-                                />
-                                {sub.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      );
-                    })}
+                    <CategorySelectItems categories={categories as any} />
                   </SelectContent>
                 </Select>
               </div>

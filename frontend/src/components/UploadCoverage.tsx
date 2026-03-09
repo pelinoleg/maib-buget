@@ -50,11 +50,12 @@ export default function UploadCoverage() {
     return Array.from(years).sort();
   })();
 
-  const handleSaveCoverageStart = async () => {
-    if (!coverageStart || coverageStart.length < 7) return;
+  const handleSaveCoverageStart = async (value?: string) => {
+    const v = value ?? coverageStart;
+    if (!v || v.length < 7) return;
     setCoverageStartSaving(true);
     try {
-      await saveCoverageStart(coverageStart);
+      await saveCoverageStart(v);
       await loadCoverage();
     } catch { /* ignore */ }
     setCoverageStartSaving(false);
@@ -78,8 +79,10 @@ export default function UploadCoverage() {
               <Input
                 type="month"
                 value={coverageStart}
-                onChange={(e) => setCoverageStart(e.target.value)}
-                onBlur={handleSaveCoverageStart}
+                onChange={(e) => {
+                  setCoverageStart(e.target.value);
+                  if (e.target.value.length >= 7) handleSaveCoverageStart(e.target.value);
+                }}
                 className="h-7 w-[140px] text-xs"
                 disabled={coverageStartSaving}
               />
