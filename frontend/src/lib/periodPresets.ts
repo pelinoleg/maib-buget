@@ -6,6 +6,7 @@ import {
 } from "date-fns";
 
 export type PeriodPresetKey =
+  | "all_time"
   | "last_7_days"
   | "last_30_days"
   | "last_90_days"
@@ -38,6 +39,16 @@ const MONTH_NAMES = [
 ];
 
 export const PERIOD_PRESETS: PeriodPreset[] = [
+  // ── All time ──
+  {
+    key: "all_time",
+    label: "Tot timpul",
+    group: "quick",
+    computeDates: () => {
+      return { dateFrom: "2000-01-01", dateTo: fmt(new Date()) };
+    },
+    formatLabel: () => "Tot timpul",
+  },
   // ── Quick (rolling) ──
   {
     key: "last_7_days",
@@ -239,8 +250,14 @@ export function formatPresetLabel(key: PeriodPresetKey, offset: number): string 
 
 /** Check if stepping forward (offset+1) would produce a period starting after today */
 export function canStepForward(key: PeriodPresetKey, offset: number): boolean {
+  if (key === "all_time") return false;
   const preset = PERIOD_PRESETS.find((p) => p.key === key);
   if (!preset) return false;
   const { dateFrom } = preset.computeDates(offset + 1);
   return dateFrom <= fmt(new Date());
+}
+
+/** Whether this preset supports offset navigation */
+export function canNavigate(key: PeriodPresetKey): boolean {
+  return key !== "all_time";
 }
