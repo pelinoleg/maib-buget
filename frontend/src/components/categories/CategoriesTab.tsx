@@ -119,30 +119,32 @@ export default function CategoriesTab({ categories, reload }: Props) {
     return (
       <div
         key={cat.id}
-        className={`group/chip inline-flex items-center gap-1.5 rounded-full border px-3 py-1 transition-colors cursor-default ${
+        className={`group/chip inline-flex items-center rounded-full border transition-colors cursor-default ${
           isParent
-            ? "text-sm font-medium hover:opacity-90"
-            : "text-xs hover:bg-accent"
+            ? "gap-1.5 px-3 py-1 text-sm font-medium hover:opacity-90"
+            : level === 1
+              ? "gap-1.5 px-3 py-1 text-xs hover:bg-accent"
+              : "gap-1 px-2 py-0.5 text-[11px] hover:bg-accent"
         }`}
         style={isParent
           ? { backgroundColor: cat.color, borderColor: cat.color, color: textColorForBg(cat.color) }
-          : { borderColor: cat.color + "60" }
+          : { borderColor: cat.color + (level === 1 ? "70" : "60") }
         }
       >
         {!isParent && (
           <span
-            className="w-2 h-2 rounded-full shrink-0"
+            className={`rounded-full shrink-0 ${level === 1 ? "w-2 h-2" : "w-1.5 h-1.5"}`}
             style={{ backgroundColor: cat.color }}
           />
         )}
         <span>{cat.name}</span>
-        <span className={`text-[10px] ${isParent ? "opacity-60" : "text-muted-foreground"}`}>{cat.transaction_count}</span>
+        <span className={`${isParent ? "text-[10px] opacity-60" : level === 1 ? "text-[10px] text-muted-foreground" : "text-[9px] text-muted-foreground"}`}>{cat.transaction_count}</span>
         <span className="inline-flex items-center gap-0.5 ml-0.5">
           <button onClick={() => startEditCat(cat)} className="p-0.5 rounded hover:bg-black/10">
-            <Pencil className={`h-2.5 w-2.5 ${isParent ? "opacity-60 hover:opacity-100" : "text-muted-foreground hover:text-foreground"}`} />
+            <Pencil className={`${level === 2 ? "h-2 w-2" : "h-2.5 w-2.5"} ${isParent ? "opacity-60 hover:opacity-100" : "text-muted-foreground hover:text-foreground"}`} />
           </button>
           <button onClick={() => handleDelete(cat.id)} className="p-0.5 rounded hover:bg-black/10">
-            <Trash2 className={`h-2.5 w-2.5 ${isParent ? "opacity-60 hover:opacity-100" : "text-destructive"}`} />
+            <Trash2 className={`${level === 2 ? "h-2 w-2" : "h-2.5 w-2.5"} ${isParent ? "opacity-60 hover:opacity-100" : "text-destructive"}`} />
           </button>
         </span>
       </div>
@@ -156,7 +158,7 @@ export default function CategoriesTab({ categories, reload }: Props) {
       <div className={`flex flex-wrap gap-1.5 ${level === 1 ? "ml-4" : "ml-8"}`}>
         {subs.map((sub) => (
           hasChildren(sub) && level === 1 ? (
-            <div key={sub.id} className="w-full flex flex-col gap-1">
+            <div key={sub.id} className="w-full flex flex-col gap-1 items-center">
               {renderChip(sub, level)}
               <div className="flex flex-wrap gap-1.5 ml-4">
                 {sub.subcategories.map((subsub) => renderChip(subsub, 2))}

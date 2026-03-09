@@ -603,29 +603,29 @@ export default function Dashboard() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="py-0">
-                  <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-                    <div className="flex items-start gap-1.5 sm:gap-2.5">
-                      <div className="p-1 sm:p-1.5 bg-emerald-100 rounded-md">
-                        <ArrowUpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+                <Card className="py-0 hidden sm:block">
+                  <CardContent className="px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-1.5 bg-emerald-100 rounded-md">
+                        <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Restituiri</p>
-                        <p className="text-sm sm:text-lg font-bold text-emerald-500 truncate">+{fmt(summary.total_refunds)}{currLabel}</p>
+                        <p className="text-xs text-muted-foreground">Restituiri</p>
+                        <p className="text-lg font-bold text-emerald-500 truncate">+{fmt(summary.total_refunds)}{currLabel}</p>
                         <DeltaBadge delta={refDelta} />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="py-0">
-                  <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-                    <div className="flex items-start gap-1.5 sm:gap-2.5">
-                      <div className="p-1 sm:p-1.5 bg-blue-100 rounded-md">
-                        <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+                <Card className="py-0 hidden sm:block">
+                  <CardContent className="px-4 py-3">
+                    <div className="flex items-start gap-2.5">
+                      <div className="p-1.5 bg-blue-100 rounded-md">
+                        <ArrowLeftRight className="h-4 w-4 text-blue-500" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Transferuri</p>
-                        <p className="text-sm sm:text-lg font-bold text-blue-500 truncate">{fmt(summary.total_transfers)}{currLabel}</p>
+                        <p className="text-xs text-muted-foreground">Transferuri</p>
+                        <p className="text-lg font-bold text-blue-500 truncate">{fmt(summary.total_transfers)}{currLabel}</p>
                       </div>
                     </div>
                   </CardContent>
