@@ -57,26 +57,18 @@ def list_categories(db: Session = Depends(get_db)):
         .all()
     )
 
-    result = []
-    for c in categories:
-        result.append({
-            "id": c.id,
-            "name": c.name,
-            "parent_id": c.parent_id,
-            "color": c.color,
-            "icon": c.icon,
-            "transaction_count": counts.get(c.id, 0),
-            "subcategories": [
-                {
-                    "id": s.id,
-                    "name": s.name,
-                    "color": s.color,
-                    "icon": s.icon,
-                    "transaction_count": counts.get(s.id, 0),
-                }
-                for s in c.subcategories
-            ],
-        })
+    def _build_tree(cat: Category) -> dict:
+        return {
+            "id": cat.id,
+            "name": cat.name,
+            "parent_id": cat.parent_id,
+            "color": cat.color,
+            "icon": cat.icon,
+            "transaction_count": counts.get(cat.id, 0),
+            "subcategories": [_build_tree(s) for s in cat.subcategories],
+        }
+
+    result = [_build_tree(c) for c in categories if c.parent_id is None]
     return result
 
 
@@ -116,16 +108,22 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
     cat = db.query(Category).get(category_id)
     if not cat:
         raise HTTPException(404, "Category not found")
-    # Collect all IDs to delete: parent + subcategories
-    sub_ids = [r[0] for r in db.query(Category.id).filter(Category.parent_id == category_id).all()]
-    all_ids = [category_id] + sub_ids
-    # Unlink transactions from parent and all subcategories
+
+    # Collect all descendant IDs recursively
+    def _collect_ids(parent_id: int) -> list[int]:
+        children = db.query(Category.id).filter(Category.parent_id == parent_id).all()
+        ids = [r[0] for r in children]
+        for child_id in list(ids):
+            ids.extend(_collect_ids(child_id))
+        return ids
+
+    all_ids = [category_id] + _collect_ids(category_id)
+    # Unlink transactions
     db.query(Transaction).filter(Transaction.category_id.in_(all_ids)).update({"category_id": None}, synchronize_session="fetch")
-    # Delete rules for parent and all subcategories
+    # Delete rules
     db.query(CategoryRule).filter(CategoryRule.category_id.in_(all_ids)).delete(synchronize_session="fetch")
-    # Delete subcategories
-    db.query(Category).filter(Category.parent_id == category_id).delete(synchronize_session="fetch")
-    db.delete(cat)
+    # Delete all descendants then self
+    db.query(Category).filter(Category.id.in_(all_ids)).delete(synchronize_session="fetch")
     db.commit()
     return {"deleted": True}
 

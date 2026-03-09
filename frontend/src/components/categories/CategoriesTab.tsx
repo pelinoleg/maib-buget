@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,14 +11,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createCategory, updateCategory, deleteCategory } from "@/lib/api";
-import type { Category } from "./types";
+import type { Category, SubCategory } from "./types";
 import { COLORS } from "./types";
 
 function textColorForBg(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  // Perceived luminance
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   return lum > 0.55 ? "#1a1a1a" : "#ffffff";
 }
@@ -37,7 +36,14 @@ export default function CategoriesTab({ categories, reload }: Props) {
   const [editCatColor, setEditCatColor] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const topCategories = categories.filter((c) => !c.parent_id);
+  // Build flat list of possible parents (top-level + their children, max depth 2 for parent selection = 3 levels total)
+  const parentOptions: { id: number; label: string; depth: number }[] = [];
+  for (const cat of categories) {
+    parentOptions.push({ id: cat.id, label: cat.name, depth: 0 });
+    for (const sub of cat.subcategories) {
+      parentOptions.push({ id: sub.id, label: `${cat.name} › ${sub.name}`, depth: 1 });
+    }
+  }
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -69,7 +75,7 @@ export default function CategoriesTab({ categories, reload }: Props) {
     reload();
   };
 
-  const renderChip = (cat: { id: number; name: string; color: string; transaction_count: number }, isParent: boolean) => {
+  const renderChip = (cat: { id: number; name: string; color: string; transaction_count: number }, level: 0 | 1 | 2) => {
     if (editingCatId === cat.id) {
       return (
         <div key={cat.id} className="inline-flex flex-col gap-1.5 p-2 rounded-lg border bg-card">
@@ -100,6 +106,8 @@ export default function CategoriesTab({ categories, reload }: Props) {
         </div>
       );
     }
+
+    const isParent = level === 0;
 
     return (
       <div
@@ -134,12 +142,30 @@ export default function CategoriesTab({ categories, reload }: Props) {
     );
   };
 
+  const renderSubcategories = (subs: SubCategory[], level: 1 | 2) => {
+    if (subs.length === 0) return null;
+    return (
+      <div className={`flex flex-wrap gap-1.5 ${level === 1 ? "ml-4" : "ml-8"}`}>
+        {subs.map((sub) => (
+          <div key={sub.id} className="inline-flex flex-col gap-1">
+            {renderChip(sub, level)}
+            {sub.subcategories && sub.subcategories.length > 0 && level === 1 && (
+              <div className="flex flex-wrap gap-1.5 ml-4">
+                {sub.subcategories.map((subsub) => renderChip(subsub, 2))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       {/* Add button / form */}
       {!showAddForm ? (
         <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" /> Adaugă categorie
+          <Plus className="h-4 w-4" /> Adauga categorie
         </Button>
       ) : (
         <Card>
@@ -163,44 +189,43 @@ export default function CategoriesTab({ categories, reload }: Props) {
             </div>
             <Select value={newParent} onValueChange={setNewParent}>
               <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Categorie părinte" />
+                <SelectValue placeholder="Categorie parinte" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">Fără părinte</SelectItem>
-                {topCategories.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                <SelectItem value="none">Fara parinte (nivel superior)</SelectItem>
+                {parentOptions.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.depth > 0 && <ChevronRight className="h-3 w-3 inline mr-1 text-muted-foreground" />}
+                    {p.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleCreate} disabled={!newName.trim()}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adaugă
+                <Plus className="h-3.5 w-3.5 mr-1" /> Adauga
               </Button>
               <Button variant="ghost" size="sm" onClick={() => { setShowAddForm(false); setNewName(""); }}>
-                Anulează
+                Anuleaza
               </Button>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Categories as grouped chips */}
+      {/* Categories as grouped chips — 3 levels */}
       <div className="space-y-5">
-        {topCategories.map((cat) => (
+        {categories.map((cat) => (
           <div key={cat.id}>
-            <div className="mb-1.5">{renderChip(cat, true)}</div>
-            {cat.subcategories.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 ml-4">
-                {cat.subcategories.map((sub) => renderChip(sub, false))}
-              </div>
-            )}
+            <div className="mb-1.5">{renderChip(cat, 0)}</div>
+            {renderSubcategories(cat.subcategories, 1)}
           </div>
         ))}
       </div>
 
-      {topCategories.length === 0 && (
+      {categories.length === 0 && (
         <p className="text-muted-foreground text-center py-8">
-          Nu există categorii. Adaugă prima categorie mai sus.
+          Nu exista categorii. Adauga prima categorie mai sus.
         </p>
       )}
     </div>

@@ -1,8 +1,11 @@
 export interface SubCategory {
   id: number;
   name: string;
+  parent_id: number | null;
   color: string;
+  icon: string | null;
   transaction_count: number;
+  subcategories: SubCategory[];
 }
 
 export interface Category {

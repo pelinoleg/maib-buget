@@ -106,13 +106,11 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
   // Group rules following parent→subcategory hierarchy (same order as CategoriesTab)
   const topCategories = categories.filter((c) => !c.parent_id).sort((a, b) => a.name.localeCompare(b.name));
 
-  // Build a map: category_id → parent_id (for subcategories)
-  const subToParent = new Map<number, number>();
-  for (const cat of categories) {
-    for (const sub of cat.subcategories) {
-      subToParent.set(sub.id, cat.id);
-    }
-  }
+  // Flatten all categories recursively for lookups
+  type AnyCategory = { id: number; name: string; color: string; subcategories?: AnyCategory[] };
+  const flattenAll = (cats: AnyCategory[]): AnyCategory[] =>
+    cats.flatMap((c) => [c, ...flattenAll(c.subcategories || [])]);
+  const allFlat = flattenAll(categories);
 
   // Index rules by category_id
   const rulesByCat = new Map<number, Rule[]>();
@@ -120,33 +118,30 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
     (rulesByCat.get(r.category_id) ?? rulesByCat.set(r.category_id, []).get(r.category_id)!).push(r);
   }
 
-  // Build display groups: parent header, then sub-groups under it
-  interface RuleGroup { catId: number; name: string; color: string; rules: Rule[]; indent: boolean }
+  // Build display groups recursively
+  interface RuleGroup { catId: number; name: string; color: string; rules: Rule[]; indent: number }
   const displayGroups: RuleGroup[] = [];
-  for (const parent of topCategories) {
-    const parentRules = rulesByCat.get(parent.id) || [];
-    const subs = (parent.subcategories || []).sort((a, b) => a.name.localeCompare(b.name));
-    const subGroups = subs
-      .filter((s) => rulesByCat.has(s.id))
-      .map((s) => ({ catId: s.id, name: s.name, color: s.color || parent.color, rules: rulesByCat.get(s.id)!, indent: true }));
 
-    if (parentRules.length === 0 && subGroups.length === 0) continue;
+  const buildGroups = (cats: AnyCategory[], depth: number) => {
+    for (const cat of [...cats].sort((a, b) => a.name.localeCompare(b.name))) {
+      const catRules = rulesByCat.get(cat.id) || [];
+      const subs = (cat.subcategories || []);
+      const hasSubRules = flattenAll(subs).some((s) => rulesByCat.has(s.id));
 
-    if (parentRules.length > 0) {
-      displayGroups.push({ catId: parent.id, name: parent.name, color: parent.color, rules: parentRules, indent: false });
-    } else {
-      // Parent header with no own rules — still show as header
-      displayGroups.push({ catId: parent.id, name: parent.name, color: parent.color, rules: [], indent: false });
+      if (catRules.length === 0 && !hasSubRules) continue;
+
+      displayGroups.push({ catId: cat.id, name: cat.name, color: cat.color, rules: catRules, indent: depth });
+      if (subs.length > 0) buildGroups(subs, depth + 1);
     }
-    displayGroups.push(...subGroups);
-  }
+  };
+  buildGroups(topCategories, 0);
 
   // Catch orphan rules (category deleted or not in hierarchy)
   const usedCatIds = new Set(displayGroups.map((g) => g.catId));
   for (const [catId, catRules] of rulesByCat) {
     if (!usedCatIds.has(catId)) {
-      const cat = categories.flatMap((c) => [c, ...c.subcategories]).find((c) => c.id === catId);
-      displayGroups.push({ catId, name: cat?.name || `#${catId}`, color: cat?.color || "#94a3b8", rules: catRules, indent: false });
+      const cat = allFlat.find((c) => c.id === catId);
+      displayGroups.push({ catId, name: cat?.name || `#${catId}`, color: cat?.color || "#94a3b8", rules: catRules, indent: 0 });
     }
   }
 
@@ -278,11 +273,11 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
       {/* Grouped rule chips */}
       <div className="space-y-3">
         {displayGroups.map((group) => (
-          <div key={group.catId} className={`space-y-1.5 ${group.indent ? "ml-4" : ""}`}>
+          <div key={group.catId} className={`space-y-1.5`} style={{ marginLeft: group.indent * 16 }}>
             {/* Category header chip */}
             <div
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${group.indent ? "text-xs" : ""}`}
-              style={group.indent
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium ${group.indent > 0 ? "text-xs" : ""}`}
+              style={group.indent > 0
                 ? { backgroundColor: group.color + "20", color: group.color, border: `1px solid ${group.color}40` }
                 : { backgroundColor: group.color, color: textColorForBg(group.color) }
               }

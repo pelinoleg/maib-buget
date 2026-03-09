@@ -140,10 +140,13 @@ export default function Dashboard() {
     });
   };
 
-  // Category drill-down
-  const [drillParent, setDrillParent] = useState<{ id: number; name: string; color: string } | null>(null);
+  // Category drill-down (stack for multi-level)
+  const [drillStack, setDrillStack] = useState<{ id: number; name: string; color: string }[]>([]);
   const [drillData, setDrillData] = useState<CategoryData[]>([]);
   const [drillLoading, setDrillLoading] = useState(false);
+  const drillParent = drillStack.length > 0 ? drillStack[drillStack.length - 1] : null;
+  // Track chart height to prevent layout jumps
+  const [chartMinHeight, setChartMinHeight] = useState<number | undefined>(undefined);
 
   // Category trend
   const [trendCategoryId, setTrendCategoryId] = useState<number | null>(null);
@@ -198,8 +201,12 @@ export default function Dashboard() {
   };
 
   const drillInto = async (cat: CategoryData) => {
+    // Capture current height to prevent jump
+    const el = document.getElementById("category-chart-section");
+    if (el) setChartMinHeight(el.offsetHeight);
+
     setDrillLoading(true);
-    setDrillParent({ id: cat.category_id!, name: cat.name, color: cat.color });
+    setDrillStack((prev) => [...prev, { id: cat.category_id!, name: cat.name, color: cat.color }]);
     setTrendCategoryId(null);
     try {
       const params = baseParams();
@@ -208,11 +215,31 @@ export default function Dashboard() {
       setDrillData(data);
     } catch { setDrillData([]); }
     setDrillLoading(false);
+    // Release min height after transition
+    setTimeout(() => setChartMinHeight(undefined), 300);
   };
 
-  const drillBack = () => {
-    setDrillParent(null);
-    setDrillData([]);
+  const drillBack = async () => {
+    const el = document.getElementById("category-chart-section");
+    if (el) setChartMinHeight(el.offsetHeight);
+
+    const newStack = drillStack.slice(0, -1);
+    setDrillStack(newStack);
+    setTrendCategoryId(null);
+
+    if (newStack.length === 0) {
+      setDrillData([]);
+    } else {
+      setDrillLoading(true);
+      try {
+        const params = baseParams();
+        params.parent_id = newStack[newStack.length - 1].id;
+        const data = await getExpensesByCategory(params);
+        setDrillData(data);
+      } catch { setDrillData([]); }
+      setDrillLoading(false);
+    }
+    setTimeout(() => setChartMinHeight(undefined), 300);
   };
 
   const reload = () => {
@@ -221,7 +248,7 @@ export default function Dashboard() {
     setLoading(true);
     setPrevSummary(null);
     setPrevByMonth([]);
-    setDrillParent(null);
+    setDrillStack([]);
     setDrillData([]);
 
     const promises: Promise<unknown>[] = [
@@ -573,10 +600,8 @@ export default function Dashboard() {
         const chartData = drillParent ? drillData : byCategory;
         const grandTotal = chartData.reduce((s, c) => s + c.total, 0);
 
-        const handlePieClick = (_: unknown, index: number) => {
-          const cat = chartData[index];
-          if (!cat) return;
-          if (cat.has_children && !drillParent) {
+        const handleCatClick = (cat: CategoryData) => {
+          if (cat.has_children) {
             drillInto(cat);
           } else {
             const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
@@ -587,29 +612,52 @@ export default function Dashboard() {
           }
         };
 
-        const handleLegendClick = (cat: CategoryData) => {
-          if (cat.has_children && !drillParent) {
-            drillInto(cat);
-          } else {
-            const params = new URLSearchParams({ category_id: cat.category_id != null ? String(cat.category_id) : "none", type: "expense" });
-            if (dateFrom) params.set("date_from", dateFrom);
-            if (dateTo) params.set("date_to", dateTo);
-            if (accountId) params.set("account_id", accountId);
-            navigate(`/transactions?${params}`);
-          }
+        const handlePieClick = (_: unknown, index: number) => {
+          const cat = chartData[index];
+          if (cat) handleCatClick(cat);
         };
 
         return (
-          <Card>
+          <Card id="category-chart-section" style={{ minHeight: chartMinHeight, transition: "min-height 0.3s ease" }}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {drillParent ? (
+              <CardTitle className="flex items-center gap-2 flex-wrap">
+                {drillStack.length > 0 ? (
                   <>
-                    <button onClick={drillBack} className="p-1 -ml-1 rounded hover:bg-accent transition-colors" title="Înapoi">
+                    <button onClick={drillBack} className="p-1 -ml-1 rounded hover:bg-accent transition-colors" title="Inapoi">
                       <ArrowLeft className="h-4 w-4" />
                     </button>
-                    <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: drillParent.color }} />
-                    {drillParent.name}
+                    <button onClick={() => { setDrillStack([]); setDrillData([]); }} className="text-muted-foreground hover:text-foreground transition-colors">
+                      Categorii
+                    </button>
+                    {drillStack.map((item, i) => (
+                      <span key={item.id} className="flex items-center gap-1.5">
+                        <span className="text-muted-foreground/50">›</span>
+                        {i < drillStack.length - 1 ? (
+                          <button
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={async () => {
+                              const newStack = drillStack.slice(0, i + 1);
+                              setDrillStack(newStack);
+                              setDrillLoading(true);
+                              try {
+                                const params = baseParams();
+                                params.parent_id = item.id;
+                                const data = await getExpensesByCategory(params);
+                                setDrillData(data);
+                              } catch { setDrillData([]); }
+                              setDrillLoading(false);
+                            }}
+                          >
+                            {item.name}
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: item.color }} />
+                            {item.name}
+                          </span>
+                        )}
+                      </span>
+                    ))}
                   </>
                 ) : (
                   "Cheltuieli pe categorii"
@@ -698,11 +746,11 @@ export default function Dashboard() {
                       <div key={cat.category_id ?? "none"}>
                         <div
                           className={`flex items-center gap-2 cursor-pointer group py-0.5 rounded px-1 -mx-1 ${trendCategoryId === cat.category_id ? "bg-accent" : "hover:bg-accent/50"}`}
-                          onClick={() => handleLegendClick(cat)}
+                          onClick={() => handleCatClick(cat)}
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
                           <span className="text-sm truncate group-hover:underline">{cat.name}</span>
-                          {cat.has_children && !drillParent && <span className="text-[10px] text-muted-foreground/60">▸</span>}
+                          {cat.has_children && <span className="text-[10px] text-muted-foreground/60">▸</span>}
                           <span className="ml-auto text-sm font-mono tabular-nums shrink-0">{fmt(cat.total)}{currLabel}</span>
                           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{pct.toFixed(0)}%</span>
                           {cat.category_id != null ? (

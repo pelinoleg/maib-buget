@@ -136,15 +136,18 @@ export default function PendingRulesTab({ categories, pendingRules, reload, setA
     reload();
   };
 
+  // Flatten all categories recursively for lookups
+  type AnyCategory = { id: number; name: string; color: string; parent_id?: number | null; subcategories?: AnyCategory[] };
+  const flattenAll = (cats: AnyCategory[]): AnyCategory[] =>
+    cats.flatMap((c) => [c, ...flattenAll(c.subcategories || [])]);
+  const allFlat = flattenAll(categories);
+
   // Group rules by category
   const grouped = new Map<number, { name: string; parentName: string | null; color: string; rules: Rule[] }>();
   for (const r of pendingRules) {
     if (!grouped.has(r.category_id)) {
-      // Find category — could be top-level or nested in subcategories
-      const cat = categories.find((c) => c.id === r.category_id)
-        || categories.flatMap((c) => c.subcategories).find((s) => s.id === r.category_id);
-      // Find parent if it's a subcategory
-      const parent = categories.find((c) => c.subcategories.some((s) => s.id === r.category_id));
+      const cat = allFlat.find((c) => c.id === r.category_id);
+      const parent = cat?.parent_id ? allFlat.find((c) => c.id === cat.parent_id) : null;
       grouped.set(r.category_id, {
         name: r.category_name,
         parentName: parent?.name ?? null,

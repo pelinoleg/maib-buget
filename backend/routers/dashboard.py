@@ -132,23 +132,49 @@ def expenses_by_category(
 ):
     """Expenses grouped by category (for pie chart).
 
-    Without parent_id: returns top-level view (subcategories rolled up into parents).
-    With parent_id: returns only direct children of that parent (drill-down).
+    Without parent_id: returns top-level view (all descendants rolled up into root categories).
+    With parent_id: returns direct children of that parent, with their own descendants rolled up.
     """
-    # Build a parent lookup: category_id -> parent_id (for rolling up)
     all_cats = db.query(Category).all()
     cat_map = {c.id: c for c in all_cats}
-    # Which parent categories have subcategories?
     parent_ids_with_children = {c.parent_id for c in all_cats if c.parent_id is not None}
 
-    def _effective_id(cat_id: int | None) -> int | None:
-        """Roll up subcategory to parent when viewing top-level."""
+    def _root_id(cat_id: int | None) -> int | None:
+        """Walk up to find the root ancestor."""
         if cat_id is None:
             return None
-        cat = cat_map.get(cat_id)
-        if cat and cat.parent_id is not None and parent_id is None:
-            return cat.parent_id
-        return cat_id
+        visited = set()
+        cur = cat_id
+        while cur in cat_map and cat_map[cur].parent_id is not None:
+            if cur in visited:
+                break
+            visited.add(cur)
+            cur = cat_map[cur].parent_id
+        return cur
+
+    def _collect_descendants(pid: int) -> list[int]:
+        """Recursively collect all descendant IDs."""
+        children = [c.id for c in all_cats if c.parent_id == pid]
+        for cid in list(children):
+            children.extend(_collect_descendants(cid))
+        return children
+
+    def _roll_up_to_child_of(cat_id: int | None, target_parent: int) -> int | None:
+        """Walk up from cat_id until we find a direct child of target_parent."""
+        if cat_id is None:
+            return None
+        visited = set()
+        cur = cat_id
+        while cur in cat_map:
+            if cur in visited:
+                break
+            visited.add(cur)
+            if cat_map[cur].parent_id == target_parent:
+                return cur
+            if cat_map[cur].parent_id is None:
+                break
+            cur = cat_map[cur].parent_id
+        return cat_id  # fallback
 
     if currency:
         q = db.query(Transaction).options(
@@ -158,9 +184,9 @@ def expenses_by_category(
         q = _base_filter(q, date_from, date_to, account_id, bank)
 
         if parent_id is not None:
-            child_ids = [c.id for c in all_cats if c.parent_id == parent_id]
-            # Include transactions assigned directly to the parent too
-            q = q.filter(Transaction.category_id.in_([parent_id] + child_ids))
+            # Filter to parent + all descendants
+            desc_ids = _collect_descendants(parent_id)
+            q = q.filter(Transaction.category_id.in_([parent_id] + desc_ids))
 
         txns = q.all()
 
@@ -169,7 +195,10 @@ def expenses_by_category(
         for t in txns:
             cur = t.account.currency if t.account else "MDL"
             converted = _convert(t.amount, cur, currency, t.transaction_date)
-            eff_id = t.category_id if parent_id is not None else _effective_id(t.category_id)
+            if parent_id is not None:
+                eff_id = _roll_up_to_child_of(t.category_id, parent_id)
+            else:
+                eff_id = _root_id(t.category_id)
             cat_totals[eff_id]["total"] += converted
             cat_totals[eff_id]["count"] += 1
             cat = cat_map.get(eff_id) if eff_id else None
@@ -204,40 +233,35 @@ def expenses_by_category(
     q = _base_filter(q, date_from, date_to, account_id, bank)
 
     if parent_id is not None:
-        child_ids = [c.id for c in all_cats if c.parent_id == parent_id]
-        q = q.filter(Category.id.in_([parent_id] + child_ids))
+        desc_ids = _collect_descendants(parent_id)
+        q = q.filter(Category.id.in_([parent_id] + desc_ids))
 
     rows = q.group_by(Category.id).all()
 
-    if parent_id is not None:
-        # Drill-down: show each child separately
-        result = [
-            {"category_id": r.id, "name": r.name, "color": r.color or "#94a3b8",
-             "total": round(r.total, 2), "count": r.count, "has_children": False}
-            for r in rows
-        ]
-    else:
-        # Top-level: roll subcategories into parents
-        merged: dict[int | None, dict] = {}
-        for r in rows:
-            eff_id = r.parent_id if r.parent_id is not None else r.id
-            if eff_id not in merged:
-                parent_cat = cat_map.get(eff_id)
-                merged[eff_id] = {
-                    "category_id": eff_id,
-                    "name": parent_cat.name if parent_cat else r.name,
-                    "color": (parent_cat.color if parent_cat else r.color) or "#94a3b8",
-                    "total": 0.0,
-                    "count": 0,
-                    "has_children": eff_id in parent_ids_with_children,
-                }
-            merged[eff_id]["total"] += r.total
-            merged[eff_id]["count"] += r.count
+    # Roll up into the target level
+    merged: dict[int | None, dict] = {}
+    for r in rows:
+        if parent_id is not None:
+            eff_id = _roll_up_to_child_of(r.id, parent_id)
+        else:
+            eff_id = _root_id(r.id)
+        if eff_id not in merged:
+            eff_cat = cat_map.get(eff_id)
+            merged[eff_id] = {
+                "category_id": eff_id,
+                "name": eff_cat.name if eff_cat else r.name,
+                "color": (eff_cat.color if eff_cat else r.color) or "#94a3b8",
+                "total": 0.0,
+                "count": 0,
+                "has_children": eff_id in parent_ids_with_children,
+            }
+        merged[eff_id]["total"] += r.total
+        merged[eff_id]["count"] += r.count
 
-        result = [
-            {**v, "total": round(v["total"], 2)}
-            for v in merged.values()
-        ]
+    result = [
+        {**v, "total": round(v["total"], 2)}
+        for v in merged.values()
+    ]
 
     # Uncategorized (only at top level)
     if parent_id is None:

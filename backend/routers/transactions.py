@@ -43,9 +43,13 @@ def list_transactions(
             q = q.filter(Transaction.category_id == None)
         else:
             cat_id = int(category_id)
-            # Include subcategories
-            sub_ids = [c.id for c in db.query(Category).filter(Category.parent_id == cat_id).all()]
-            all_ids = [cat_id] + sub_ids
+            # Include all descendants recursively
+            def _collect_descendants(pid: int) -> list[int]:
+                children = [c.id for c in db.query(Category).filter(Category.parent_id == pid).all()]
+                for cid in list(children):
+                    children.extend(_collect_descendants(cid))
+                return children
+            all_ids = [cat_id] + _collect_descendants(cat_id)
             q = q.filter(Transaction.category_id.in_(all_ids))
     if type:
         q = q.filter(Transaction.type == type)
