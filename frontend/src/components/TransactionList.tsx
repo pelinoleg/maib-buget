@@ -662,7 +662,7 @@ export default function TransactionList() {
       </div>
 
       {/* Summary — compact row on mobile, cards on desktop */}
-      <div className="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <Card className="py-0">
           <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
             <div className="flex items-start gap-1.5 sm:gap-2.5">
@@ -689,83 +689,28 @@ export default function TransactionList() {
             </div>
           </CardContent>
         </Card>
-        <Card className="py-0">
-          <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-            <div className="flex items-start gap-1.5 sm:gap-2.5">
-              <div className="p-1 sm:p-1.5 bg-emerald-100 rounded-md">
-                <ArrowUpCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-emerald-500" />
+        <Card className="py-0 hidden sm:block">
+          <CardContent className="px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <div className="p-1.5 bg-emerald-100 rounded-md">
+                <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Restituiri</p>
-                <p className="text-sm sm:text-lg font-bold text-emerald-500 truncate">+{sumRefunds.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
+                <p className="text-xs text-muted-foreground">Restituiri</p>
+                <p className="text-lg font-bold text-emerald-500 truncate">+{sumRefunds.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="py-0">
-          <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-            <div className="flex items-start gap-1.5 sm:gap-2.5">
-              <div className="p-1 sm:p-1.5 bg-blue-100 rounded-md">
-                <ArrowLeftRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-500" />
+        <Card className="py-0 hidden sm:block">
+          <CardContent className="px-4 py-3">
+            <div className="flex items-start gap-2.5">
+              <div className="p-1.5 bg-blue-100 rounded-md">
+                <ArrowLeftRight className="h-4 w-4 text-blue-500" />
               </div>
               <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Transferuri</p>
-                <p className="text-sm sm:text-lg font-bold text-blue-500 truncate">{sumTransfers.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      {/* Mobile: same card style as desktop, 2 cols */}
-      <div className="sm:hidden grid grid-cols-2 gap-2">
-        <Card className="py-0">
-          <CardContent className="px-2 py-2">
-            <div className="flex items-start gap-1.5">
-              <div className="p-1 bg-green-100 rounded-md">
-                <TrendingUp className="h-3.5 w-3.5 text-green-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Venituri</p>
-                <p className="text-sm font-bold text-green-600 truncate">+{sumIncome.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-0">
-          <CardContent className="px-2 py-2">
-            <div className="flex items-start gap-1.5">
-              <div className="p-1 bg-red-100 rounded-md">
-                <TrendingDown className="h-3.5 w-3.5 text-red-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Cheltuieli</p>
-                <p className="text-sm font-bold text-red-500 truncate">-{sumExpense.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-0">
-          <CardContent className="px-2 py-2">
-            <div className="flex items-start gap-1.5">
-              <div className="p-1 bg-emerald-100 rounded-md">
-                <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Restituiri</p>
-                <p className="text-sm font-bold text-emerald-500 truncate">+{sumRefunds.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="py-0">
-          <CardContent className="px-2 py-2">
-            <div className="flex items-start gap-1.5">
-              <div className="p-1 bg-blue-100 rounded-md">
-                <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] text-muted-foreground">Transferuri</p>
-                <p className="text-sm font-bold text-blue-500 truncate">{sumTransfers.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}</p>
+                <p className="text-xs text-muted-foreground">Transferuri</p>
+                <p className="text-lg font-bold text-blue-500 truncate">{sumTransfers.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
               </div>
             </div>
           </CardContent>
