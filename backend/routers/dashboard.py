@@ -212,7 +212,7 @@ def expenses_by_category(
         result = [
             {"category_id": cid, "name": info["name"], "color": info["color"],
              "total": round(info["total"], 2), "count": info["count"],
-             "has_children": cid in parent_ids_with_children if cid else False}
+             "has_children": (cid in parent_ids_with_children and cid != parent_id) if cid else False}
             for cid, info in cat_totals.items()
             if info["total"] > 0
         ]
@@ -253,7 +253,7 @@ def expenses_by_category(
                 "color": (eff_cat.color if eff_cat else r.color) or "#94a3b8",
                 "total": 0.0,
                 "count": 0,
-                "has_children": eff_id in parent_ids_with_children,
+                "has_children": eff_id in parent_ids_with_children and eff_id != parent_id,
             }
         merged[eff_id]["total"] += r.total
         merged[eff_id]["count"] += r.count

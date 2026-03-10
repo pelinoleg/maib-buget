@@ -11,6 +11,7 @@ import {
   FileDown,
   BarChart3,
   ArrowLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -651,7 +652,7 @@ export default function Dashboard() {
 
         const handlePieClick = (_: unknown, index: number) => {
           const cat = chartData[index];
-          if (cat?.has_children) drillInto(cat);
+          if (cat?.has_children && cat.category_id !== drillParent?.id) drillInto(cat);
         };
 
         return (
@@ -739,7 +740,7 @@ export default function Dashboard() {
                   </div>
                   {/* Desktop chart */}
                   <div className="hidden lg:block">
-                    <ResponsiveContainer width="100%" height={600}>
+                    <ResponsiveContainer width="100%" height={500}>
                       <PieChart>
                         <Pie
                           data={chartData}
@@ -787,9 +788,17 @@ export default function Dashboard() {
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
                           <span className="text-sm truncate group-hover:underline">{cat.name}</span>
-                          {cat.has_children && <span className="text-[10px] text-muted-foreground/60">▸</span>}
                           <span className="ml-auto text-sm font-mono tabular-nums shrink-0">{fmt(cat.total)}{currLabel}</span>
                           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{pct.toFixed(0)}%</span>
+                          {cat.has_children && (
+                            <button
+                              className="p-1 rounded transition-colors shrink-0 text-muted-foreground/40 hover:text-foreground hover:bg-accent"
+                              title="Arată subcategorii"
+                              onClick={(e) => { e.stopPropagation(); drillInto(cat); }}
+                            >
+                              <ChevronRight className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           {cat.category_id != null ? (
                             <button
                               className={`p-1 rounded transition-colors shrink-0 ${trendCategoryId === cat.category_id ? "text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/40" : "text-muted-foreground/40 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"}`}
