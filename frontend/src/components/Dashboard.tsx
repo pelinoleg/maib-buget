@@ -722,7 +722,7 @@ export default function Dashboard() {
                           innerRadius={60}
                           outerRadius={145}
                           showLabels={false}
-                          onPieClick={(i) => handlePieClick(null, i)}
+                          onPieClick={(i: number) => handlePieClick(null, i)}
                           formatValue={fmt}
                           currLabel={currLabel}
                         />
@@ -735,7 +735,7 @@ export default function Dashboard() {
                           height={470}
                           innerRadius={95}
                           outerRadius={180}
-                          onPieClick={(i) => handlePieClick(null, i)}
+                          onPieClick={(i: number) => handlePieClick(null, i)}
                           formatValue={fmt}
                           currLabel={currLabel}
                         />
@@ -909,7 +909,7 @@ export default function Dashboard() {
                 <MuiBarChart
                   data={byMonth}
                   height={280}
-                  onBarClick={(month) => {
+                  onBarClick={(month: string) => {
                     const [y, m] = month.split("-");
                     const params = new URLSearchParams({
                       date_from: `${y}-${m}-01`,

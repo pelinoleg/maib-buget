@@ -535,7 +535,7 @@ export default function ExchangeRates() {
                       color="#6366f1"
                       tickInterval={tickInterval}
                       tooltipLabel="EUR"
-                      formatTooltip={(v) => v.toFixed(4)}
+                      formatTooltip={(v: number) => v.toFixed(4)}
                     />
                   ) : (
                     <ResponsiveContainer width="100%" height={130}>
@@ -570,7 +570,7 @@ export default function ExchangeRates() {
                       color="#10b981"
                       tickInterval={tickInterval}
                       tooltipLabel="USD"
-                      formatTooltip={(v) => v.toFixed(4)}
+                      formatTooltip={(v: number) => v.toFixed(4)}
                     />
                   ) : (
                     <ResponsiveContainer width="100%" height={130}>
