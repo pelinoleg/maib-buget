@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import FilterSidebar, { FilterPanel } from "@/components/FilterSidebar";
 import {
   Select,
@@ -995,9 +996,19 @@ export default function TransactionList() {
                               />
                               <span className="truncate">{txn.category_name}</span>
                               {txn.categorized_by === "rule" && (
-                                <span title={`${txn.applied_rule_match_type === "regex" ? "Regex" : "Conține"}: "${txn.applied_rule_pattern || "?"}" → ${txn.applied_rule_category || txn.category_name}`}>
-                                  <Zap className="h-2.5 w-2.5 text-amber-400 shrink-0" />
-                                </span>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex cursor-default">
+                                        <Zap className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" className="max-w-[250px]">
+                                      <p className="font-medium">{txn.applied_rule_match_type === "regex" ? "Regex" : "Conține"}: <span className="font-mono">{txn.applied_rule_pattern}</span></p>
+                                      <p className="text-muted">→ {txn.applied_rule_category || txn.category_name}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
                               )}
                             </>
                           ) : (
