@@ -964,7 +964,7 @@ export default function TransactionList() {
                           {txn.bank.toUpperCase()}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {txn.account_currency}
                       </Badge>
                     </div>
@@ -974,7 +974,7 @@ export default function TransactionList() {
                   }`}>
                     {txn.amount > 0 ? "+" : ""}{txn.amount.toFixed(2)} {txn.account_currency}
                   </TableCell>
-                  <TableCell className="text-right text-xs text-muted-foreground hidden md:table-cell">
+                  <TableCell className="text-right text-[11px] text-muted-foreground/70 hidden md:table-cell">
                     {txn.original_currency !== txn.account_currency && txn.original_amount
                       ? `${txn.original_amount.toFixed(2)} ${txn.original_currency}`
                       : ""}
