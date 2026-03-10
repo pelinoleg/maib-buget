@@ -35,6 +35,8 @@ def apply_rules(db: Session, transactions: list[Transaction] = None):
                 break  # rules already sorted by priority, first match is best
         if best_rule:
             txn.category_id = best_rule.category_id
+            txn.categorized_by = "rule"
+            txn.applied_rule_id = best_rule.id
             count += 1
 
     db.commit()

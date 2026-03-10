@@ -36,6 +36,18 @@ if "category_rules" in insp.get_table_names():
             conn.execute(text("ALTER TABLE category_rules ADD COLUMN priority INTEGER DEFAULT 1"))
             conn.commit()
 
+# Migrate: add categorized_by and applied_rule_id to transactions
+if "transactions" in insp.get_table_names():
+    txn_cols = [c["name"] for c in insp.get_columns("transactions")]
+    if "categorized_by" not in txn_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN categorized_by TEXT"))
+            conn.commit()
+    if "applied_rule_id" not in txn_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN applied_rule_id INTEGER REFERENCES category_rules(id)"))
+            conn.commit()
+
 # Migrate: add description column to accounts if missing
 if "accounts" in insp.get_table_names():
     acc_cols = [c["name"] for c in insp.get_columns("accounts")]

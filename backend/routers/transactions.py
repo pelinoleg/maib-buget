@@ -30,6 +30,7 @@ def list_transactions(
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
+        joinedload(Transaction.applied_rule),
     )
 
     if account_id:
@@ -128,6 +129,9 @@ def list_transactions(
                 "linked_transaction_id": t.linked_transaction_id,
                 "source_file": t.source_file,
                 "note": t.note,
+                "categorized_by": t.categorized_by,
+                "applied_rule_id": t.applied_rule_id,
+                "applied_rule_pattern": t.applied_rule.pattern if t.applied_rule_id and t.applied_rule else None,
             }
             for t in transactions
         ],
@@ -144,6 +148,8 @@ def update_transaction_category(
     if not txn:
         raise HTTPException(404, "Transaction not found")
     txn.category_id = category_id
+    txn.categorized_by = "manual" if category_id else None
+    txn.applied_rule_id = None
     db.commit()
     return {"id": txn.id, "category_id": txn.category_id}
 
@@ -214,6 +220,10 @@ def update_transaction(transaction_id: int, data: TransactionUpdate, db: Session
 
     for field, value in updates.items():
         setattr(txn, field, value)
+
+    if "category_id" in updates:
+        txn.categorized_by = "manual" if updates["category_id"] else None
+        txn.applied_rule_id = None
 
     if "type" in updates:
         txn.is_transfer = (updates["type"] == "transfer")

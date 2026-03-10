@@ -64,6 +64,8 @@ class Transaction(Base):
     amount = Column(Float, nullable=False, index=True)  # in account currency
     type = Column(String, nullable=False, index=True)  # income, expense, transfer
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True, index=True)
+    categorized_by = Column(String, nullable=True)  # "rule", "manual", "ai", null=uncategorized
+    applied_rule_id = Column(Integer, ForeignKey("category_rules.id"), nullable=True)
     balance_after = Column(Float, nullable=True)
     commission = Column(Float, default=0)
     is_transfer = Column(Boolean, default=False)
@@ -74,6 +76,7 @@ class Transaction(Base):
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
+    applied_rule = relationship("CategoryRule", foreign_keys=[applied_rule_id])
     linked_transaction = relationship("Transaction", remote_side=[id])
 
     @validates("type")

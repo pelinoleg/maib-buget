@@ -23,6 +23,8 @@ import {
   Scissors,
   Pencil,
   ChevronDown,
+  Zap,
+  SearchCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -93,6 +95,9 @@ interface Transaction {
   is_transfer: boolean;
   source_file: string;
   note: string | null;
+  categorized_by: string | null;
+  applied_rule_id: number | null;
+  applied_rule_pattern: string | null;
 }
 
 interface Account {
@@ -868,7 +873,7 @@ export default function TransactionList() {
                       />
                     </TableCell>
                   )}
-                  <TableCell className="text-sm whitespace-nowrap">
+                  <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                     <span className="md:hidden">{txn.transaction_date.slice(8)}.{txn.transaction_date.slice(5,7)}</span>
                     <span className="hidden md:inline">{txn.transaction_date.split("-").reverse().join(".")}</span>
                   </TableCell>
@@ -987,6 +992,11 @@ export default function TransactionList() {
                                 style={{ backgroundColor: txn.category_color || "#94a3b8" }}
                               />
                               <span className="truncate">{txn.category_name}</span>
+                              {txn.categorized_by === "rule" && (
+                                <span title={`Regulă: ${txn.applied_rule_pattern || "?"}`}>
+                                  <Zap className="h-2.5 w-2.5 text-amber-400 shrink-0" />
+                                </span>
+                              )}
                             </>
                           ) : (
                             <span className="text-muted-foreground">---</span>
@@ -1015,6 +1025,18 @@ export default function TransactionList() {
                   {!bulkMode && (
                     <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-0.5">
+                        <button
+                          onClick={() => {
+                            // Extract meaningful part of description for search
+                            const words = txn.description.replace(/[0-9.,]+\s*(EUR|USD|MDL|RON|GBP)?/gi, "").trim().split(/\s+/).filter(Boolean);
+                            const searchTerm = words.slice(0, 3).join(" ").trim();
+                            if (searchTerm) { setSearch(searchTerm); setPage(0); }
+                          }}
+                          className="p-1 rounded text-muted-foreground/40 hover:text-indigo-500 transition-colors"
+                          title="Caută tranzacții similare"
+                        >
+                          <SearchCheck className="h-3.5 w-3.5" />
+                        </button>
                         <button
                           onClick={() => {
                             setEditTarget(txn);
