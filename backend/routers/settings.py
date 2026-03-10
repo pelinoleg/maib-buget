@@ -15,8 +15,9 @@ from models import Transaction, Account, ExchangeRate
 
 router = APIRouter(prefix="/api/settings", tags=["settings"])
 
-AI_PROMPT_FILE = Path(__file__).resolve().parent.parent / "ai_prompt.json"
-SETTINGS_FILE = Path(__file__).resolve().parent.parent / "app_settings.json"
+_DATA_DIR = Path(os.environ.get("DATA_DIR", str(Path(__file__).resolve().parent.parent)))
+AI_PROMPT_FILE = _DATA_DIR / "ai_prompt.json"
+SETTINGS_FILE = _DATA_DIR / "app_settings.json"
 
 
 def _load_settings() -> dict:

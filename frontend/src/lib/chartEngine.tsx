@@ -3,13 +3,6 @@ import { getChartEngine, setChartEngine as saveChartEngine } from "./api";
 
 type Engine = "recharts" | "mui";
 
-const LS_KEY = "chart_engine";
-
-function readLocal(): Engine | null {
-  const v = localStorage.getItem(LS_KEY);
-  return v === "recharts" || v === "mui" ? v : null;
-}
-
 interface ChartEngineCtx {
   engine: Engine;
   setEngine: (e: Engine) => void;
@@ -19,26 +12,18 @@ interface ChartEngineCtx {
 const Ctx = createContext<ChartEngineCtx>({ engine: "recharts", setEngine: () => {}, loading: true });
 
 export function ChartEngineProvider({ children }: { children: ReactNode }) {
-  const [engine, setEngineState] = useState<Engine>(() => readLocal() || "recharts");
-  const [loading, setLoading] = useState(!readLocal());
+  const [engine, setEngineState] = useState<Engine>("recharts");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // If no local preference, fetch from backend
-    if (!readLocal()) {
-      getChartEngine()
-        .then((r) => {
-          const e = r.chart_engine as Engine;
-          setEngineState(e);
-          localStorage.setItem(LS_KEY, e);
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    }
+    getChartEngine()
+      .then((r) => setEngineState(r.chart_engine as Engine))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   const setEngine = (e: Engine) => {
     setEngineState(e);
-    localStorage.setItem(LS_KEY, e);
     saveChartEngine(e).catch(() => {});
   };
 

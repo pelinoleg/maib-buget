@@ -9,6 +9,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:////data/buget.db
       - UPLOAD_DIR=/data/uploaded_pdfs
+      - DATA_DIR=/data
     volumes:
       - ./data:/data
     ports:
