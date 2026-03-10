@@ -6,7 +6,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useChartEngine } from "@/lib/chartEngine";
-import { LazyMuiAreaChart as MuiAreaChart } from "@/components/charts";
+import { LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 import {
   getExchangeRates,
   getExchangeRatesSummary,
@@ -528,14 +528,12 @@ export default function ExchangeRates() {
                 <div>
                   <p className="text-[10px] text-muted-foreground font-medium mb-1">EUR / MDL</p>
                   {chartEngine === "mui" ? (
-                    <MuiAreaChart
-                      data={chartEurUsd}
+                    <MuiSparkLine
+                      data={chartEurUsd.map((d) => d.EUR).filter((v): v is number => v != null)}
+                      labels={chartEurUsd.map((d) => d.label)}
                       height={130}
-                      dataKey="EUR"
                       color="#6366f1"
-                      tickInterval={tickInterval}
-                      tooltipLabel="EUR"
-                      formatTooltip={(v: number) => v.toFixed(4)}
+                      tooltipFormatter={(v: number) => v.toFixed(4)}
                     />
                   ) : (
                     <ResponsiveContainer width="100%" height={130}>
@@ -563,14 +561,12 @@ export default function ExchangeRates() {
                 <div>
                   <p className="text-[10px] text-muted-foreground font-medium mb-1">USD / MDL</p>
                   {chartEngine === "mui" ? (
-                    <MuiAreaChart
-                      data={chartEurUsd}
+                    <MuiSparkLine
+                      data={chartEurUsd.map((d) => d.USD).filter((v): v is number => v != null)}
+                      labels={chartEurUsd.map((d) => d.label)}
                       height={130}
-                      dataKey="USD"
                       color="#10b981"
-                      tickInterval={tickInterval}
-                      tooltipLabel="USD"
-                      formatTooltip={(v: number) => v.toFixed(4)}
+                      tooltipFormatter={(v: number) => v.toFixed(4)}
                     />
                   ) : (
                     <ResponsiveContainer width="100%" height={130}>

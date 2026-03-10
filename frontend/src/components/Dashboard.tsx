@@ -42,7 +42,7 @@ import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
 import { exportDashboardPDF } from "@/lib/pdf";
 import { useChartEngine } from "@/lib/chartEngine";
-import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiLineChart as MuiLineChart } from "@/components/charts";
+import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 
 interface Summary {
   total_income: number;
@@ -732,7 +732,7 @@ export default function Dashboard() {
                           data={chartData}
                           grandTotal={grandTotal}
                           centerLabel={drillParent ? drillParent.name : "total cheltuieli"}
-                          height={470}
+                          height={550}
                           innerRadius={95}
                           outerRadius={180}
                           onPieClick={(i: number) => handlePieClick(null, i)}
@@ -845,7 +845,7 @@ export default function Dashboard() {
                               <BarChart3 className="h-3.5 w-3.5" />
                             </button>
                           ) : (
-                            <span className="p-1 shrink-0 w-[20px]" />
+                            <span className="p-1 shrink-0 w-[51px]" />
                           )}
                         </div>
                       </div>
@@ -866,7 +866,13 @@ export default function Dashboard() {
                         <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin" /></div>
                       ) : trendData.length > 0 ? (
                         chartEngine === "mui" ? (
-                          <MuiLineChart data={trendData} height={120} color={trendCategoryColor} label={trendCategoryName ?? "Total"} />
+                          <MuiSparkLine
+                            data={trendData.map((d: { total: number }) => d.total)}
+                            labels={trendData.map((d: { month: string }) => d.month)}
+                            height={120}
+                            color={trendCategoryColor}
+                            tooltipFormatter={(v: number) => v.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}
+                          />
                         ) : (
                           <ResponsiveContainer width="100%" height={120}>
                             <LineChart data={trendData}>

@@ -2,8 +2,7 @@ import { lazy, Suspense, type ComponentProps } from "react";
 
 const MuiDonutChartLazy = lazy(() => import("./MuiDonutChart"));
 const MuiBarChartLazy = lazy(() => import("./MuiBarChart"));
-const MuiLineChartLazy = lazy(() => import("./MuiLineChart"));
-const MuiAreaChartLazy = lazy(() => import("./MuiAreaChart"));
+const MuiSparkLineLazy = lazy(() => import("./MuiSparkLine"));
 
 function ChartFallback({ height }: { height: number }) {
   return (
@@ -29,18 +28,10 @@ export function LazyMuiBarChart(props: ComponentProps<typeof MuiBarChartLazy>) {
   );
 }
 
-export function LazyMuiLineChart(props: ComponentProps<typeof MuiLineChartLazy>) {
+export function LazyMuiSparkLine(props: ComponentProps<typeof MuiSparkLineLazy>) {
   return (
     <Suspense fallback={<ChartFallback height={props.height} />}>
-      <MuiLineChartLazy {...props} />
-    </Suspense>
-  );
-}
-
-export function LazyMuiAreaChart(props: ComponentProps<typeof MuiAreaChartLazy>) {
-  return (
-    <Suspense fallback={<ChartFallback height={props.height} />}>
-      <MuiAreaChartLazy {...props} />
+      <MuiSparkLineLazy {...props} />
     </Suspense>
   );
 }
