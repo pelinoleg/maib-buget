@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { analyzeWithAI, getAccounts } from "@/lib/api";
+import { currencySymbol } from "@/lib/currency";
 import { type PeriodPresetKey, PERIOD_PRESETS, computeDatesForPreset } from "@/lib/periodPresets";
 
 interface Account {
@@ -154,7 +155,7 @@ export default function AIAnalysis() {
             <SelectItem value="all">Toate conturile</SelectItem>
             {accounts.map((a) => (
               <SelectItem key={a.id} value={String(a.id)}>
-                {a.name} ({a.currency})
+                {a.name} ({currencySymbol(a.currency)})
               </SelectItem>
             ))}
           </SelectContent>

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { currencySymbol } from "@/lib/currency";
 import {
   Select,
   SelectContent,
@@ -234,7 +235,7 @@ export default function AccountsSummary() {
                       <div className="flex items-center gap-2 min-w-0">
                         <TypeIcon className="h-4 w-4 text-muted-foreground shrink-0" />
                         <span className="font-medium text-sm truncate">{acc.name}</span>
-                        <Badge variant="outline" className="text-[10px] shrink-0">{acc.currency}</Badge>
+                        <Badge variant="outline" className="text-[10px] shrink-0">{currencySymbol(acc.currency)}</Badge>
                         <Badge variant="secondary" className="text-[10px] shrink-0">{typeInfo.label}</Badge>
                         {acc.is_monitored && <Badge variant="secondary" className="text-[10px] shrink-0 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">monitorizat</Badge>}
                         <span className="flex-1" />

@@ -41,6 +41,7 @@ import PeriodPresetBar, { type FilterState } from "@/components/PeriodPresetBar"
 import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_PRESETS, PRESET_GROUPS } from "@/lib/periodPresets";
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
 import { exportDashboardPDF } from "@/lib/pdf";
+import { currencySymbol } from "@/lib/currency";
 import { useChartEngine } from "@/lib/chartEngine";
 import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 
@@ -94,6 +95,7 @@ interface Account {
 }
 
 const BASE_CURRENCY = import.meta.env.VITE_BASE_CURRENCY || "EUR";
+const BASE_SYMBOL = currencySymbol(BASE_CURRENCY);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function PieTooltip({ active, payload }: any) {
@@ -110,7 +112,7 @@ function PieTooltip({ active, payload }: any) {
       </div>
       <div className="text-muted-foreground text-xs flex items-baseline gap-1.5">
         <span className="font-semibold text-foreground">
-          {val.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_CURRENCY}
+          {val.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_SYMBOL}
         </span>
         {pct != null && <span>({(pct * 100).toFixed(1)}%)</span>}
       </div>
@@ -127,7 +129,7 @@ function ChartTooltip({ active, payload, label }: any) {
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
           <span className="text-xs text-muted-foreground">{p.name}:</span>
           <span className="font-medium text-xs">
-            {(p.value as number).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_CURRENCY}
+            {(p.value as number).toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {BASE_SYMBOL}
           </span>
         </div>
       ))}
@@ -359,7 +361,7 @@ export default function Dashboard() {
   const fmt = (n: number) =>
     n.toLocaleString("ro-RO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  const currLabel = ` ${BASE_CURRENCY}`;
+  const currLabel = ` ${currencySymbol(BASE_CURRENCY)}`;
 
   // Persist filters
   useEffect(() => {

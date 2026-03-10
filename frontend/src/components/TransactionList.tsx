@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { currencySymbol, currencyColor } from "@/lib/currency";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import FilterSidebar, { FilterPanel } from "@/components/FilterSidebar";
 import {
@@ -349,7 +350,7 @@ export default function TransactionList() {
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const summCurrLabel = ` ${BASE_CURRENCY}`;
+  const summCurrLabel = ` ${currencySymbol(BASE_CURRENCY)}`;
 
   // Net balance from filtered summary
   const filteredNet = -sumExpense + sumIncome + sumRefunds;
@@ -733,7 +734,7 @@ export default function TransactionList() {
                 <span>{total} tranzacții</span>
                 {(sumExpense > 0 || sumIncome > 0) && (
                   <span className={`hidden text-sm font-semibold ${filteredNet >= 0 ? "text-green-600" : "text-red-500"}`}>
-                    {filteredNet >= 0 ? "+" : ""}{filteredNet.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {BASE_CURRENCY}
+                    {filteredNet >= 0 ? "+" : ""}{filteredNet.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {currencySymbol(BASE_CURRENCY)}
                   </span>
                 )}
               </CardTitle>
@@ -964,19 +965,23 @@ export default function TransactionList() {
                           {txn.bank.toUpperCase()}
                         </Badge>
                       )}
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {txn.account_currency}
-                      </Badge>
+                      <span
+                        className="text-[11px] font-bold"
+                        style={{ color: currencyColor(txn.account_currency) }}
+                        title={txn.account_currency}
+                      >
+                        {currencySymbol(txn.account_currency)}
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className={`text-right font-mono text-sm whitespace-nowrap ${
                     txn.type === "cancelled" ? "text-purple-500" : txn.type === "refund" ? "text-emerald-400" : txn.is_transfer ? "text-blue-500" : txn.amount > 0 ? "text-green-600" : txn.amount < 0 ? "text-red-500" : ""
                   }`}>
-                    {txn.amount > 0 ? "+" : ""}{txn.amount.toFixed(2)} {txn.account_currency}
+                    {txn.amount > 0 ? "+" : ""}{txn.amount.toFixed(2)} {currencySymbol(txn.account_currency)}
                   </TableCell>
                   <TableCell className="text-right text-[11px] text-muted-foreground/70 hidden md:table-cell">
                     {txn.original_currency !== txn.account_currency && txn.original_amount
-                      ? `${txn.original_amount.toFixed(2)} ${txn.original_currency}`
+                      ? `${txn.original_amount.toFixed(2)} ${currencySymbol(txn.original_currency)}`
                       : ""}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
@@ -1172,7 +1177,7 @@ export default function TransactionList() {
               <div className="text-sm text-muted-foreground">
                 <span className="font-medium text-foreground">{splitTarget.description}</span>
                 {" — "}
-                <span className="font-mono">{splitTarget.amount.toFixed(2)} {splitTarget.account_currency}</span>
+                <span className="font-mono">{splitTarget.amount.toFixed(2)} {currencySymbol(splitTarget.account_currency)}</span>
               </div>
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
@@ -1200,7 +1205,7 @@ export default function TransactionList() {
                 />
                 {splitAmount && parseFloat(splitAmount) > 0 && parseFloat(splitAmount) <= Math.abs(splitTarget.amount) && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Rămâne: {(Math.abs(splitTarget.amount) - parseFloat(splitAmount)).toFixed(2)} {splitTarget.account_currency}
+                    Rămâne: {(Math.abs(splitTarget.amount) - parseFloat(splitAmount)).toFixed(2)} {currencySymbol(splitTarget.account_currency)}
                   </p>
                 )}
               </div>

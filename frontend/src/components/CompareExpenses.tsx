@@ -10,8 +10,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { compareCategories } from "@/lib/api";
+import { currencySymbol } from "@/lib/currency";
 
 const BASE_CURRENCY = import.meta.env.VITE_BASE_CURRENCY || "EUR";
+const BASE_SYMBOL = currencySymbol(BASE_CURRENCY);
 
 const MONTH_LABELS: Record<string, string> = {
   "01": "Ianuarie", "02": "Februarie", "03": "Martie", "04": "Aprilie",
@@ -60,7 +62,7 @@ export default function CompareExpenses() {
   const [loading, setLoading] = useState(false);
   const [labels, setLabels] = useState<{ current: string; previous: string }>({ current: "", previous: "" });
 
-  const currLabel = ` ${BASE_CURRENCY}`;
+  const currLabel = ` ${BASE_SYMBOL}`;
 
   const load = async (p?: ComparePreset, mA?: string, mB?: string, yA?: string, yB?: string) => {
     const pr = p ?? preset;
@@ -191,7 +193,7 @@ export default function CompareExpenses() {
               {" vs "}
               <span className="font-medium text-foreground">{labels.previous}</span>
               {" — cheltuieli, "}
-              {BASE_CURRENCY}
+              {BASE_SYMBOL}
             </p>
           )}
         </CardContent>
@@ -211,8 +213,8 @@ export default function CompareExpenses() {
         const deltaText = (delta: number, pct: number | null) => {
           if (delta === 0) return "fără schimbare";
           const dir = delta > 0 ? "mai mult" : "mai puțin";
-          if (pct != null) return `cu ${Math.abs(pct).toFixed(0)}% (${fmt(Math.abs(delta))} ${BASE_CURRENCY}) ${dir} în ${labels.current}`;
-          return `cu ${fmt(Math.abs(delta))} ${BASE_CURRENCY} ${dir} în ${labels.current}`;
+          if (pct != null) return `cu ${Math.abs(pct).toFixed(0)}% (${fmt(Math.abs(delta))} ${BASE_SYMBOL}) ${dir} în ${labels.current}`;
+          return `cu ${fmt(Math.abs(delta))} ${BASE_SYMBOL} ${dir} în ${labels.current}`;
         };
 
         return (
@@ -248,13 +250,13 @@ export default function CompareExpenses() {
                           >
                             {curW > 20 && (
                               <span className="px-2 text-[11px] font-bold text-white drop-shadow-sm truncate">
-                                {fmt(c.current)} {BASE_CURRENCY}
+                                {fmt(c.current)} {BASE_SYMBOL}
                               </span>
                             )}
                           </div>
                           {curW <= 20 && (
                             <span className="absolute left-[calc(var(--w)+0.5rem)] top-1/2 -translate-y-1/2 text-[11px] font-semibold" style={{ "--w": `${curW}%` } as React.CSSProperties}>
-                              {fmt(c.current)} {BASE_CURRENCY}
+                              {fmt(c.current)} {BASE_SYMBOL}
                             </span>
                           )}
                         </div>
@@ -270,13 +272,13 @@ export default function CompareExpenses() {
                           >
                             {prevW > 20 && (
                               <span className="px-2 text-[11px] font-bold text-white drop-shadow-sm truncate" style={{ opacity: 1 / 0.35 }}>
-                                {fmt(c.previous)} {BASE_CURRENCY}
+                                {fmt(c.previous)} {BASE_SYMBOL}
                               </span>
                             )}
                           </div>
                           {prevW <= 20 && (
                             <span className="absolute left-[calc(var(--w)+0.5rem)] top-1/2 -translate-y-1/2 text-[11px] font-semibold text-muted-foreground" style={{ "--w": `${prevW}%` } as React.CSSProperties}>
-                              {fmt(c.previous)} {BASE_CURRENCY}
+                              {fmt(c.previous)} {BASE_SYMBOL}
                             </span>
                           )}
                         </div>

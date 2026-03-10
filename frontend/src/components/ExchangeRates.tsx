@@ -6,6 +6,7 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
 import { useChartEngine } from "@/lib/chartEngine";
+import { currencySymbol } from "@/lib/currency";
 import { LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 import {
   getExchangeRates,
@@ -485,7 +486,7 @@ export default function ExchangeRates() {
                           <div className="mt-0.5">
                             {dayIncomes.map((inc, i) => (
                               <div key={i} className="text-[8px] md:text-[10px] font-medium text-green-600 dark:text-green-400 truncate leading-tight">
-                                +{inc.amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {inc.account_currency}
+                                +{inc.amount.toLocaleString("ro-RO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} {currencySymbol(inc.account_currency)}
                               </div>
                             ))}
                           </div>
@@ -612,11 +613,11 @@ export default function ExchangeRates() {
                   </div>
                   <div className="flex items-center gap-2 sm:gap-3 sm:ml-auto shrink-0">
                     <span className="font-medium text-green-600 tabular-nums text-xs sm:text-sm">
-                      +{inc.amount.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {inc.account_currency}
+                      +{inc.amount.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {currencySymbol(inc.account_currency)}
                     </span>
                     {inc.amountMdl !== null && (
                       <span className="text-[10px] sm:text-xs text-muted-foreground tabular-nums">
-                        ≈ {inc.amountMdl!.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} MDL
+                        ≈ {inc.amountMdl!.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {currencySymbol("MDL")}
                         <span className="text-[10px] ml-1 hidden sm:inline">({inc.rate!.toFixed(4)})</span>
                       </span>
                     )}
@@ -633,11 +634,11 @@ export default function ExchangeRates() {
                     <span className="text-xs text-muted-foreground shrink-0">Total</span>
                     <div className="flex items-center gap-2 sm:gap-3 sm:ml-auto">
                       <span className="font-semibold text-green-600 tabular-nums text-xs sm:text-sm">
-                        {Object.entries(byCurrency).map(([cur, sum]) => `+${sum.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} ${cur}`).join(" / ")}
+                        {Object.entries(byCurrency).map(([cur, sum]) => `+${sum.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} ${currencySymbol(cur)}`).join(" / ")}
                       </span>
                       {totalMdl > 0 && (
                         <span className="text-[10px] sm:text-xs font-medium tabular-nums">
-                          ≈ {totalMdl.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} MDL
+                          ≈ {totalMdl.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {currencySymbol("MDL")}
                         </span>
                       )}
                     </div>

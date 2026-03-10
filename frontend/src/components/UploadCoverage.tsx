@@ -3,6 +3,7 @@ import { AlertTriangle, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { getUploadCoverage, saveCoverageStart } from "@/lib/api";
+import { currencySymbol } from "@/lib/currency";
 
 interface CoverageAccount {
   account_id: number;
@@ -114,7 +115,7 @@ export default function UploadCoverage() {
                           <div key={acc.account_id} className={`border-l-2 pl-4 pb-2 ${missingCount > 0 ? "border-red-300 dark:border-red-800" : "border-green-300 dark:border-green-800"}`}>
                             <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                               <span className="text-sm font-semibold truncate max-w-[60vw] sm:max-w-none">{acc.name}</span>
-                              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded shrink-0">{acc.currency}</span>
+                              <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded shrink-0">{currencySymbol(acc.currency)}</span>
                               {missingCount > 0 ? (
                                 <span className="text-[10px] text-red-500 dark:text-red-400 shrink-0">{missingCount} lipsă</span>
                               ) : (

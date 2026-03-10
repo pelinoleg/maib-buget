@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { CategorySelectItems } from "@/components/categories/CategorySelect";
 import { getAccounts, getCategories, createTransaction } from "@/lib/api";
+import { currencySymbol } from "@/lib/currency";
 
 interface Account {
   id: number;
@@ -135,7 +136,7 @@ export default function AddTransaction() {
                       <SelectLabel>{bank.toUpperCase()}</SelectLabel>
                       {accs.map((a) => (
                         <SelectItem key={a.id} value={String(a.id)}>
-                          {a.name || a.account_number} ({a.currency})
+                          {a.name || a.account_number} ({currencySymbol(a.currency)})
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -191,7 +192,7 @@ export default function AddTransaction() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-sm font-medium mb-1.5 block">
-                  Suma{selectedAccount ? ` (${selectedAccount.currency})` : ""} <span className="text-red-500">*</span>
+                  Suma{selectedAccount ? ` (${currencySymbol(selectedAccount.currency)})` : ""} <span className="text-red-500">*</span>
                 </label>
                 <Input
                   type="number"

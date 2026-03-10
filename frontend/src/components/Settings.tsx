@@ -14,6 +14,7 @@ import {
 import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
 import { useChartEngine } from "@/lib/chartEngine";
+import { currencySymbol } from "@/lib/currency";
 
 interface DupTxn { id: number; description: string; amount: number; type: string; account_number: string | null; account_currency: string | null; bank: string | null; category_name: string | null; source_file: string | null; }
 interface DupGroup { date: string; amount: number; transactions: DupTxn[]; }
@@ -173,7 +174,7 @@ export default function Settings() {
                 <div key={gi} className="border rounded-lg p-3 space-y-2">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <span className="font-medium">{g.date}</span>
-                    <span className="font-mono">{g.amount.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {g.transactions[0]?.account_currency || ""}</span>
+                    <span className="font-mono">{g.amount.toLocaleString("ro-RO", { minimumFractionDigits: 2 })} {currencySymbol(g.transactions[0]?.account_currency || "")}</span>
                     <Badge variant="outline" className="text-[10px]">{g.transactions.length} tranzactii</Badge>
                   </div>
                   {g.transactions.map((t) => (
