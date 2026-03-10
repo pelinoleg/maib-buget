@@ -740,7 +740,7 @@ export default function Dashboard() {
                   </div>
                   {/* Desktop chart */}
                   <div className="hidden lg:block">
-                    <ResponsiveContainer width="100%" height={500}>
+                    <ResponsiveContainer width="100%" height={470}>
                       <PieChart>
                         <Pie
                           data={chartData}
@@ -787,7 +787,7 @@ export default function Dashboard() {
                           onClick={() => navigateToCategory(cat)}
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
-                          <span className="text-sm truncate group-hover:underline">{cat.name}</span>
+                          <span className="text-sm group-hover:underline break-words line-clamp-2" title={cat.name}>{cat.name}</span>
                           <span className="ml-auto text-sm font-mono tabular-nums shrink-0">{fmt(cat.total)}{currLabel}</span>
                           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{pct.toFixed(0)}%</span>
                           {cat.has_children && (
