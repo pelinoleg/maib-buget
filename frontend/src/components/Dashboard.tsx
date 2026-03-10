@@ -732,7 +732,7 @@ export default function Dashboard() {
                           data={chartData}
                           grandTotal={grandTotal}
                           centerLabel={drillParent ? drillParent.name : "total cheltuieli"}
-                          height={550}
+                          height={500}
                           innerRadius={95}
                           outerRadius={180}
                           onPieClick={(i: number) => handlePieClick(null, i)}
