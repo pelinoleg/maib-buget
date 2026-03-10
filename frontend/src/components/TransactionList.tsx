@@ -98,6 +98,8 @@ interface Transaction {
   categorized_by: string | null;
   applied_rule_id: number | null;
   applied_rule_pattern: string | null;
+  applied_rule_match_type: string | null;
+  applied_rule_category: string | null;
 }
 
 interface Account {
@@ -993,7 +995,7 @@ export default function TransactionList() {
                               />
                               <span className="truncate">{txn.category_name}</span>
                               {txn.categorized_by === "rule" && (
-                                <span title={`Regulă: ${txn.applied_rule_pattern || "?"}`}>
+                                <span title={`${txn.applied_rule_match_type === "regex" ? "Regex" : "Conține"}: "${txn.applied_rule_pattern || "?"}" → ${txn.applied_rule_category || txn.category_name}`}>
                                   <Zap className="h-2.5 w-2.5 text-amber-400 shrink-0" />
                                 </span>
                               )}

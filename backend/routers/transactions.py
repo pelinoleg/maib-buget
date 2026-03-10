@@ -132,6 +132,8 @@ def list_transactions(
                 "categorized_by": t.categorized_by,
                 "applied_rule_id": t.applied_rule_id,
                 "applied_rule_pattern": t.applied_rule.pattern if t.applied_rule_id and t.applied_rule else None,
+                "applied_rule_match_type": t.applied_rule.match_type if t.applied_rule_id and t.applied_rule else None,
+                "applied_rule_category": t.applied_rule.category.name if t.applied_rule_id and t.applied_rule and t.applied_rule.category else None,
             }
             for t in transactions
         ],
