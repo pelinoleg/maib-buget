@@ -130,6 +130,27 @@ def set_coverage_start(data: CoverageStartData):
     return {"status": "ok", "coverage_start": data.coverage_start.strip()}
 
 
+@router.get("/chart-engine")
+def get_chart_engine():
+    settings = _load_settings()
+    return {"chart_engine": settings.get("chart_engine", "recharts")}
+
+
+class ChartEngineData(BaseModel):
+    chart_engine: str  # "recharts" | "mui"
+
+
+@router.put("/chart-engine")
+def set_chart_engine(data: ChartEngineData):
+    if data.chart_engine not in ("recharts", "mui"):
+        from fastapi import HTTPException
+        raise HTTPException(400, "Must be 'recharts' or 'mui'")
+    settings = _load_settings()
+    settings["chart_engine"] = data.chart_engine
+    _save_settings(settings)
+    return {"status": "ok", "chart_engine": data.chart_engine}
+
+
 class AIPromptData(BaseModel):
     system_message: str
     user_prompt_template: str

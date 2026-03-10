@@ -13,6 +13,7 @@ import {
 } from "@/lib/api";
 import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
+import { useChartEngine } from "@/lib/chartEngine";
 
 interface DupTxn { id: number; description: string; amount: number; type: string; account_number: string | null; account_currency: string | null; bank: string | null; category_name: string | null; source_file: string | null; }
 interface DupGroup { date: string; amount: number; transactions: DupTxn[]; }
@@ -26,6 +27,9 @@ export default function Settings() {
   const [duplicates, setDuplicates] = useState<DupGroup[]>([]);
   const [dupsLoading, setDupsLoading] = useState(false);
   const [dupsLoaded, setDupsLoaded] = useState(false);
+
+  // Chart engine
+  const { engine: chartEngine, setEngine: setChartEngine } = useChartEngine();
 
   // Accent color
   const [activeAccent, setActiveAccent] = useState(getStoredAccent);
@@ -95,6 +99,36 @@ export default function Settings() {
               />
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Chart engine */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Motor grafice</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            {([
+              { key: "recharts" as const, label: "Recharts" },
+              { key: "mui" as const, label: "MUI X Charts" },
+            ]).map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => setChartEngine(opt.key)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border-2 transition-all ${
+                  chartEngine === opt.key
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Schimba motorul de grafice pentru toate diagramele din aplicatie.
+          </p>
         </CardContent>
       </Card>
 

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
 } from "recharts";
+import { useChartEngine } from "@/lib/chartEngine";
+import { LazyMuiAreaChart as MuiAreaChart } from "@/components/charts";
 import {
   getExchangeRates,
   getExchangeRatesSummary,
@@ -84,6 +86,7 @@ function perPageForPeriod(period: ChartPeriod): number {
 }
 
 export default function ExchangeRates() {
+  const { engine: chartEngine } = useChartEngine();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [rows, setRows] = useState<RateRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -524,47 +527,71 @@ export default function ExchangeRates() {
                 {/* EUR chart */}
                 <div>
                   <p className="text-[10px] text-muted-foreground font-medium mb-1">EUR / MDL</p>
-                  <ResponsiveContainer width="100%" height={130}>
-                    <AreaChart data={chartEurUsd}>
-                      <defs>
-                        <linearGradient id="eurGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={tickInterval} axisLine={false} tickLine={false} />
-                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
-                        formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "EUR"] : ""}
-                        labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
-                      />
-                      <Area type="linear" dataKey="EUR" stroke="#6366f1" strokeWidth={1.5} fill="url(#eurGrad)" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {chartEngine === "mui" ? (
+                    <MuiAreaChart
+                      data={chartEurUsd}
+                      height={130}
+                      dataKey="EUR"
+                      color="#6366f1"
+                      tickInterval={tickInterval}
+                      tooltipLabel="EUR"
+                      formatTooltip={(v) => v.toFixed(4)}
+                    />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={chartEurUsd}>
+                        <defs>
+                          <linearGradient id="eurGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#6366f1" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={tickInterval} axisLine={false} tickLine={false} />
+                        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
+                          formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "EUR"] : ""}
+                          labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
+                        />
+                        <Area type="linear" dataKey="EUR" stroke="#6366f1" strokeWidth={1.5} fill="url(#eurGrad)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
 
                 {/* USD chart */}
                 <div>
                   <p className="text-[10px] text-muted-foreground font-medium mb-1">USD / MDL</p>
-                  <ResponsiveContainer width="100%" height={130}>
-                    <AreaChart data={chartEurUsd}>
-                      <defs>
-                        <linearGradient id="usdGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
-                        </linearGradient>
-                      </defs>
-                      <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={tickInterval} axisLine={false} tickLine={false} />
-                      <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
-                      <Tooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
-                        formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "USD"] : ""}
-                        labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
-                      />
-                      <Area type="linear" dataKey="USD" stroke="#10b981" strokeWidth={1.5} fill="url(#usdGrad)" dot={false} />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {chartEngine === "mui" ? (
+                    <MuiAreaChart
+                      data={chartEurUsd}
+                      height={130}
+                      dataKey="USD"
+                      color="#10b981"
+                      tickInterval={tickInterval}
+                      tooltipLabel="USD"
+                      formatTooltip={(v) => v.toFixed(4)}
+                    />
+                  ) : (
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={chartEurUsd}>
+                        <defs>
+                          <linearGradient id="usdGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
+                            <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={tickInterval} axisLine={false} tickLine={false} />
+                        <YAxis domain={["auto", "auto"]} tick={{ fontSize: 9 }} width={38} axisLine={false} tickLine={false} tickFormatter={(v: number) => v.toFixed(2)} />
+                        <Tooltip
+                          contentStyle={{ fontSize: 11, borderRadius: 8, border: "1px solid var(--border)" }}
+                          formatter={(v: number | undefined) => v != null ? [v.toFixed(4), "USD"] : ""}
+                          labelFormatter={(_, payload) => payload?.[0]?.payload?.date ? fmtDate(payload[0].payload.date) : ""}
+                        />
+                        <Area type="linear" dataKey="USD" stroke="#10b981" strokeWidth={1.5} fill="url(#usdGrad)" dot={false} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
             )}

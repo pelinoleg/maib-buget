@@ -41,6 +41,8 @@ import PeriodPresetBar, { type FilterState } from "@/components/PeriodPresetBar"
 import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_PRESETS, PRESET_GROUPS } from "@/lib/periodPresets";
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
 import { exportDashboardPDF } from "@/lib/pdf";
+import { useChartEngine } from "@/lib/chartEngine";
+import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiLineChart as MuiLineChart } from "@/components/charts";
 
 interface Summary {
   total_income: number;
@@ -156,6 +158,7 @@ function deltaPercent(current: number, previous: number): number | null {
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { engine: chartEngine } = useChartEngine();
   const [summary, setSummary] = useState<Summary | null>(null);
   const [prevSummary, setPrevSummary] = useState<Summary | null>(null);
   const [prevByMonth, setPrevByMonth] = useState<MonthData[]>([]);
@@ -708,74 +711,108 @@ export default function Dashboard() {
               ) : (
               <div className="flex flex-col lg:flex-row items-center gap-8">
                 <div className="w-full lg:w-[600px] lg:shrink-0 relative">
-                  {/* Mobile chart */}
-                  <div className="block lg:hidden">
-                    <ResponsiveContainer width="100%" height={340}>
-                      <PieChart>
-                        <Pie
+                  {chartEngine === "mui" ? (
+                    <>
+                      <div className="block lg:hidden">
+                        <MuiDonutChart
                           data={chartData}
-                          dataKey="total"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
+                          grandTotal={grandTotal}
+                          centerLabel={drillParent ? drillParent.name : "total cheltuieli"}
+                          height={340}
                           innerRadius={60}
                           outerRadius={145}
-                          paddingAngle={1.5}
-                          className="cursor-pointer"
-                          onClick={handlePieClick}
-                        >
-                          {chartData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<PieTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ height: 340 }}>
-                      <div className="text-center">
-                        <p className="text-xl font-bold">{fmt(grandTotal)}</p>
-                        <p className="text-[10px] text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
+                          showLabels={false}
+                          onPieClick={(i) => handlePieClick(null, i)}
+                          formatValue={fmt}
+                          currLabel={currLabel}
+                        />
                       </div>
-                    </div>
-                  </div>
-                  {/* Desktop chart */}
-                  <div className="hidden lg:block">
-                    <ResponsiveContainer width="100%" height={470}>
-                      <PieChart>
-                        <Pie
+                      <div className="hidden lg:block">
+                        <MuiDonutChart
                           data={chartData}
-                          dataKey="total"
-                          nameKey="name"
-                          cx="50%"
-                          cy="50%"
+                          grandTotal={grandTotal}
+                          centerLabel={drillParent ? drillParent.name : "total cheltuieli"}
+                          height={470}
                           innerRadius={95}
                           outerRadius={180}
-                          paddingAngle={0.2}
-                          label={({ name, percent, x, y, textAnchor }: { name?: string; percent?: number; x?: number; y?: number; textAnchor?: string }) =>
-                            (percent ?? 0) > 0.04 ? (
-                              <text x={x} y={y} textAnchor={textAnchor as "start" | "middle" | "end"} dominantBaseline="central" className="fill-foreground text-xs">
-                                {name} {((percent ?? 0) * 100).toFixed(0)}%
-                              </text>
-                            ) : null
-                          }
-                          labelLine={{ stroke: "var(--muted-foreground)", strokeWidth: 1, strokeOpacity: 0.3 }}
-                          className="cursor-pointer"
-                          onClick={handlePieClick}
-                        >
-                          {chartData.map((entry, index) => (
-                            <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
-                          ))}
-                        </Pie>
-                        <Tooltip content={<PieTooltip />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center">
-                        <p className="text-2xl font-bold">{fmt(grandTotal)}</p>
-                        <p className="text-xs text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
+                          onPieClick={(i) => handlePieClick(null, i)}
+                          formatValue={fmt}
+                          currLabel={currLabel}
+                        />
                       </div>
-                    </div>
-                  </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Mobile chart */}
+                      <div className="block lg:hidden">
+                        <ResponsiveContainer width="100%" height={340}>
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              dataKey="total"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={145}
+                              paddingAngle={1.5}
+                              className="cursor-pointer"
+                              onClick={handlePieClick}
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<PieTooltip />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ height: 340 }}>
+                          <div className="text-center">
+                            <p className="text-xl font-bold">{fmt(grandTotal)}</p>
+                            <p className="text-[10px] text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Desktop chart */}
+                      <div className="hidden lg:block">
+                        <ResponsiveContainer width="100%" height={470}>
+                          <PieChart>
+                            <Pie
+                              data={chartData}
+                              dataKey="total"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={95}
+                              outerRadius={180}
+                              paddingAngle={0.2}
+                              label={({ name, percent, x, y, textAnchor }: { name?: string; percent?: number; x?: number; y?: number; textAnchor?: string }) =>
+                                (percent ?? 0) > 0.04 ? (
+                                  <text x={x} y={y} textAnchor={textAnchor as "start" | "middle" | "end"} dominantBaseline="central" className="fill-foreground text-xs">
+                                    {name} {((percent ?? 0) * 100).toFixed(0)}%
+                                  </text>
+                                ) : null
+                              }
+                              labelLine={{ stroke: "var(--muted-foreground)", strokeWidth: 1, strokeOpacity: 0.3 }}
+                              className="cursor-pointer"
+                              onClick={handlePieClick}
+                            >
+                              {chartData.map((entry, index) => (
+                                <Cell key={index} fill={entry.color} stroke="none" className="outline-none" />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<PieTooltip />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div className="text-center">
+                            <p className="text-2xl font-bold">{fmt(grandTotal)}</p>
+                            <p className="text-xs text-muted-foreground">{drillParent ? drillParent.name : "total cheltuieli"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-1.5">
                   {chartData.map((cat) => {
@@ -787,7 +824,7 @@ export default function Dashboard() {
                           onClick={() => navigateToCategory(cat)}
                         >
                           <span className="w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: cat.color }} />
-                          <span className="text-sm group-hover:underline break-words line-clamp-2" title={cat.name}>{cat.name}</span>
+                          <span className="text-sm truncate group-hover:underline">{cat.name}</span>
                           <span className="ml-auto text-sm font-mono tabular-nums shrink-0">{fmt(cat.total)}{currLabel}</span>
                           <span className="text-xs text-muted-foreground w-10 text-right shrink-0">{pct.toFixed(0)}%</span>
                           {cat.has_children && (
@@ -828,14 +865,18 @@ export default function Dashboard() {
                       {trendLoading ? (
                         <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin" /></div>
                       ) : trendData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={120}>
-                          <LineChart data={trendData}>
-                            <XAxis dataKey="month" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 10 }} width={50} />
-                            <Tooltip content={<ChartTooltip />} />
-                            <Line type="monotone" dataKey="total" stroke={trendCategoryColor} strokeWidth={2} dot={{ r: 3 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                        chartEngine === "mui" ? (
+                          <MuiLineChart data={trendData} height={120} color={trendCategoryColor} label={trendCategoryName ?? "Total"} />
+                        ) : (
+                          <ResponsiveContainer width="100%" height={120}>
+                            <LineChart data={trendData}>
+                              <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                              <YAxis tick={{ fontSize: 10 }} width={50} />
+                              <Tooltip content={<ChartTooltip />} />
+                              <Line type="monotone" dataKey="total" stroke={trendCategoryColor} strokeWidth={2} dot={{ r: 3 }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        )
                       ) : (
                         <p className="text-xs text-muted-foreground text-center py-2">Nu sunt date</p>
                       )}
@@ -864,35 +905,51 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {byMonth.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart
+              chartEngine === "mui" ? (
+                <MuiBarChart
                   data={byMonth}
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    if (e?.activeLabel) {
-                      const [y, m] = String(e.activeLabel).split("-");
-                      const params = new URLSearchParams({
-                        date_from: `${y}-${m}-01`,
-                        date_to: `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`,
-                      });
-                      if (accountId) params.set("account_id", accountId);
-                      navigate(`/transactions?${params}`);
-                    }
+                  height={280}
+                  onBarClick={(month) => {
+                    const [y, m] = month.split("-");
+                    const params = new URLSearchParams({
+                      date_from: `${y}-${m}-01`,
+                      date_to: `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`,
+                    });
+                    if (accountId) params.set("account_id", accountId);
+                    navigate(`/transactions?${params}`);
                   }}
-                >
-                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend content={() => (
-                    <div className="flex items-center justify-center gap-4 mt-2 text-sm">
-                      <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#22c55e" }} />Venituri</span>
-                      <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />Cheltuieli</span>
-                    </div>
-                  )} />
-                  <Bar dataKey="income" name="Venituri" fill="#22c55e" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name="Cheltuieli" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                />
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={byMonth}
+                    className="cursor-pointer"
+                    onClick={(e) => {
+                      if (e?.activeLabel) {
+                        const [y, m] = String(e.activeLabel).split("-");
+                        const params = new URLSearchParams({
+                          date_from: `${y}-${m}-01`,
+                          date_to: `${y}-${m}-${new Date(parseInt(y), parseInt(m), 0).getDate()}`,
+                        });
+                        if (accountId) params.set("account_id", accountId);
+                        navigate(`/transactions?${params}`);
+                      }
+                    }}
+                  >
+                    <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <Legend content={() => (
+                      <div className="flex items-center justify-center gap-4 mt-2 text-sm">
+                        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#22c55e" }} />Venituri</span>
+                        <span className="flex items-center gap-1.5"><span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />Cheltuieli</span>
+                      </div>
+                    )} />
+                    <Bar dataKey="income" name="Venituri" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expense" name="Cheltuieli" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )
             ) : (
               <p className="text-muted-foreground text-center py-8">Nu sunt date</p>
             )}

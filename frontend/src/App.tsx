@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BrowserRouter, Routes, Route, NavLink, useLocation } from "react-router-dom";
 import { LayoutDashboard, List, Upload, Tags, Wallet, Loader2, FileText, Moon, Sun, Sparkles, Settings2, Menu, X, ArrowUpDown, GitCompareArrows, Plus, ClipboardCheck } from "lucide-react";
 import { applyAccent } from "./lib/accent";
+import { ChartEngineProvider } from "./lib/chartEngine";
 import Dashboard from "./components/Dashboard";
 import TransactionList from "./components/TransactionList";
 import UploadPDF from "./components/UploadPDF";
@@ -350,11 +351,13 @@ function AppShell() {
 export default function App() {
   return (
     <BrowserRouter>
-      <UploadProvider>
-        <FilterSidebarProvider>
-          <AppShell />
-        </FilterSidebarProvider>
-      </UploadProvider>
+      <ChartEngineProvider>
+        <UploadProvider>
+          <FilterSidebarProvider>
+            <AppShell />
+          </FilterSidebarProvider>
+        </UploadProvider>
+      </ChartEngineProvider>
     </BrowserRouter>
   );
 }

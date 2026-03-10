@@ -401,6 +401,18 @@ export function saveCoverageStart(coverageStart: string) {
   });
 }
 
+export function getChartEngine(): Promise<{ chart_engine: string }> {
+  return fetchJSON("/settings/chart-engine");
+}
+
+export function setChartEngine(engine: string) {
+  return fetchJSON("/settings/chart-engine", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chart_engine: engine }),
+  });
+}
+
 // Dev
 export function resetDatabase() {
   return fetchJSON("/reset-database", { method: "POST" });
