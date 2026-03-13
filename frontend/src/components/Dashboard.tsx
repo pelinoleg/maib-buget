@@ -14,6 +14,8 @@ import {
   ChevronRight,
   Eye,
   EyeOff,
+  SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,7 +40,9 @@ import {
   getTopExpenses,
   getAccounts,
   getCategoryTrend,
+  getCategories,
 } from "@/lib/api";
+import type { Category as CatType } from "./categories/types";
 import PeriodPresetBar, { type FilterState } from "@/components/PeriodPresetBar";
 import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_PRESETS, PRESET_GROUPS } from "@/lib/periodPresets";
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
@@ -161,6 +165,68 @@ function deltaPercent(current: number, previous: number): number | null {
   return ((current - previous) / previous) * 100;
 }
 
+function TopExpensesFilter({
+  allCategories,
+  excludedCategoryIds,
+  onToggle,
+}: {
+  allCategories: CatType[];
+  excludedCategoryIds: number[];
+  onToggle: (id: number, name: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const renderItems = (cats: CatType[], depth = 0): React.ReactNode =>
+    cats.map((c) => (
+      <div key={c.id}>
+        <label className="flex items-center gap-2 px-3 py-1.5 hover:bg-accent rounded-md cursor-pointer select-none"
+          style={{ paddingLeft: `${12 + depth * 16}px` }}>
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 rounded"
+            checked={!excludedCategoryIds.includes(c.id)}
+            onChange={() => onToggle(c.id, c.name)}
+          />
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+          <span className="text-sm truncate">{c.name}</span>
+        </label>
+        {c.subcategories?.length > 0 && renderItems(c.subcategories as unknown as CatType[], depth + 1)}
+      </div>
+    ));
+
+  const excludedCount = excludedCategoryIds.length;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 h-7 px-2.5 text-xs rounded-md border transition-colors ${
+          excludedCount > 0
+            ? "border-primary text-primary bg-primary/5"
+            : "border-border text-muted-foreground hover:bg-accent"
+        }`}
+      >
+        <SlidersHorizontal className="h-3.5 w-3.5" />
+        {excludedCount > 0 ? `${excludedCount} exclus` : "Filtrează"}
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-9 z-20 w-56 max-h-72 overflow-y-auto rounded-lg border bg-popover shadow-md py-1.5">
+            {allCategories.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-3 py-2">Nu sunt categorii</p>
+            ) : (
+              renderItems(allCategories)
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { engine: chartEngine } = useChartEngine();
@@ -170,6 +236,7 @@ export default function Dashboard() {
   const [byCategory, setByCategory] = useState<CategoryData[]>([]);
   const [byMonth, setByMonth] = useState<MonthData[]>([]);
   const [topExpenses, setTopExpenses] = useState<TopExpense[]>([]);
+  const [allCategories, setAllCategories] = useState<CatType[]>([]);
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -339,6 +406,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     getAccounts().then(setAccounts);
+    getCategories().then((c) => setAllCategories(c as CatType[]));
   }, []);
 
   useEffect(reload, [dateFrom, dateTo, accountId, bankFilter]);
@@ -1003,75 +1071,46 @@ export default function Dashboard() {
         {/* Top expenses */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Top cheltuieli
-              {activePeriodPreset && (
-                <span className="text-sm font-normal text-muted-foreground">
-                  {formatPresetLabel(activePeriodPreset, presetOffset)}
-                </span>
-              )}
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                Top cheltuieli
+                {activePeriodPreset && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {formatPresetLabel(activePeriodPreset, presetOffset)}
+                  </span>
+                )}
+              </CardTitle>
+              <TopExpensesFilter
+                allCategories={allCategories}
+                excludedCategoryIds={excludedCategoryIds}
+                onToggle={toggleExcludeCategory}
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            {(() => {
-              // Pills: categories from visible top expenses + excluded ones (so they can be un-excluded)
-              const visibleCats = topExpenses
-                .filter((t) => t.category_id != null)
-                .map((t) => ({ id: t.category_id!, name: t.category_name ?? `#${t.category_id}` }));
-              // Deduplicate by id
-              const seenIds = new Set<number>();
-              const allPillCats: {id: number; name: string}[] = [];
-              for (const c of [...visibleCats, ...excludedCategories]) {
-                if (!seenIds.has(c.id)) { seenIds.add(c.id); allPillCats.push(c); }
-              }
-              return (
-                <>
-                  {allPillCats.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {allPillCats.map(({ id, name }) => {
-                        const isExcluded = excludedCategoryIds.includes(id);
-                        return (
-                          <button
-                            key={id}
-                            onClick={() => toggleExcludeCategory(id, name)}
-                            className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
-                              isExcluded
-                                ? "bg-muted text-muted-foreground line-through border-transparent"
-                                : "bg-background text-foreground border-border hover:bg-accent"
-                            }`}
-                          >
-                            {name}
-                          </button>
-                        );
-                      })}
+            {topExpenses.length > 0 ? (
+              <div className="space-y-2">
+                {topExpenses.map((t, i) => (
+                  <div key={t.id} className="flex items-center gap-3 text-sm">
+                    <span className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 truncate">
+                      <p className="font-medium truncate">{t.description}</p>
+                      {t.note && <p className="text-xs text-amber-600 dark:text-amber-400 truncate">{t.note}</p>}
+                      <p className="text-xs text-muted-foreground">
+                        {t.date} {t.category_name && `\u2022 ${t.category_name}`}
+                      </p>
                     </div>
-                  )}
-                  {topExpenses.length > 0 ? (
-                    <div className="space-y-2">
-                      {topExpenses.map((t, i) => (
-                        <div key={t.id} className="flex items-center gap-3 text-sm">
-                          <span className="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-xs font-bold">
-                            {i + 1}
-                          </span>
-                          <div className="flex-1 truncate">
-                            <p className="font-medium truncate">{t.description}</p>
-                            {t.note && <p className="text-xs text-amber-600 dark:text-amber-400 truncate">{t.note}</p>}
-                            <p className="text-xs text-muted-foreground">
-                              {t.date} {t.category_name && `\u2022 ${t.category_name}`}
-                            </p>
-                          </div>
-                          <span className="font-mono font-semibold text-red-500">
-                            -{fmt(t.amount)}{currLabel}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-8">Nu sunt date</p>
-                  )}
-                </>
-              );
-            })()}
+                    <span className="font-mono font-semibold text-red-500 flex-shrink-0">
+                      -{fmt(t.amount)}{currLabel}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-center py-8">Nu sunt date</p>
+            )}
           </CardContent>
         </Card>
 
