@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter, TrendingDown, TrendingUp, Hash, Banknote } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter, TrendingDown, TrendingUp, Hash } from "lucide-react";
 import {
   getHiddenFilters,
   createHiddenFilter,
@@ -264,24 +264,26 @@ interface SalaryTxn {
 function SalaryBlock() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
-  const [expanded, setExpanded] = useState(false);
   const [txns, setTxns] = useState<SalaryTxn[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [pattern, setPattern] = useState("web development");
+  const [editingPattern, setEditingPattern] = useState(false);
+  const [patternDraft, setPatternDraft] = useState("web development");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getSalaryTransactions({ year });
+      const data = await getSalaryTransactions({ year, pattern });
       setTxns(data.transactions);
     } finally {
       setLoading(false);
     }
-  }, [year]);
+  }, [year, pattern]);
 
-  useEffect(() => { if (expanded) load(); }, [expanded, load]);
+  useEffect(() => { load(); }, [load]);
 
   const startEdit = (t: SalaryTxn) => {
     setEditingId(t.id);
@@ -312,122 +314,141 @@ function SalaryBlock() {
   const hasAdjustments = txns.some((t) => t.adjustment !== null);
 
   return (
-    <div className="border rounded-xl overflow-hidden">
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-      >
-        {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-        <Banknote className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium flex-1">Corecție salariu</span>
-        {!expanded && hasAdjustments && (
-          <span className="text-xs text-amber-600 dark:text-amber-400 font-mono">
-            {totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)}
-          </span>
-        )}
-      </button>
+    <div className="space-y-4">
+      {/* Pattern + year toolbar */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1.5">
+          <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+            <ChevronRight className="h-4 w-4 rotate-180" />
+          </button>
+          <span className="text-sm font-medium w-12 text-center">{year}</span>
+          <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
 
-      {expanded && (
-        <div className="border-t">
-          {/* Year selector */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b">
-            <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-              <ChevronRight className="h-4 w-4 rotate-180" />
+        <div className="flex items-center gap-1.5 flex-1">
+          {editingPattern ? (
+            <>
+              <input
+                autoFocus
+                className="h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-0"
+                value={patternDraft}
+                onChange={(e) => setPatternDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { setPattern(patternDraft); setEditingPattern(false); }
+                  if (e.key === "Escape") { setPatternDraft(pattern); setEditingPattern(false); }
+                }}
+              />
+              <button onClick={() => { setPattern(patternDraft); setEditingPattern(false); }} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                <Check className="h-3.5 w-3.5" />
+              </button>
+              <button onClick={() => { setPatternDraft(pattern); setEditingPattern(false); }} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => { setPatternDraft(pattern); setEditingPattern(true); }}
+              className="flex items-center gap-1.5 h-7 px-2.5 text-xs rounded-md border hover:bg-accent transition-colors text-muted-foreground font-mono"
+            >
+              <Pencil className="h-3 w-3" />
+              {pattern}
             </button>
-            <span className="text-sm font-medium w-12 text-center">{year}</span>
-            <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-            {hasAdjustments && (
-              <div className="ml-auto flex items-center gap-3 text-xs">
-                <span className="text-muted-foreground">Real: <span className="font-mono">{totalReal.toFixed(2)}</span></span>
-                <span className="text-muted-foreground">→</span>
-                <span className="font-mono font-medium">{totalAdjusted.toFixed(2)}</span>
-                <span className={`font-mono ${totalDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>
-                  ({totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)})
-                </span>
-              </div>
-            )}
-          </div>
-
-          {loading && <div className="text-sm text-muted-foreground text-center py-6">Se încarcă...</div>}
-
-          {!loading && txns.length === 0 && (
-            <div className="text-sm text-muted-foreground text-center py-6">
-              Nicio tranzacție salarială găsită
-            </div>
-          )}
-
-          {!loading && txns.length > 0 && (
-            <div className="divide-y divide-border/50">
-              {txns.map((t) => (
-                <div key={t.id} className={`flex items-center gap-3 px-4 py-3 text-sm ${t.adjustment !== null ? "bg-amber-50/40 dark:bg-amber-950/15" : ""}`}>
-                  <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{t.transaction_date}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="truncate text-muted-foreground text-xs">{t.description}</p>
-                  </div>
-
-                  {/* Real amount */}
-                  <span className="font-mono text-sm flex-shrink-0">{t.amount.toFixed(2)}</span>
-
-                  {/* Arrow + adjusted */}
-                  {t.adjustment !== null && (
-                    <>
-                      <span className="text-muted-foreground text-xs">→</span>
-                      <span className={`font-mono text-sm font-medium flex-shrink-0 ${(t.adjusted_amount ?? 0) < t.amount ? "text-amber-600 dark:text-amber-400" : "text-emerald-500"}`}>
-                        {(t.adjusted_amount ?? t.amount).toFixed(2)}
-                      </span>
-                    </>
-                  )}
-
-                  {/* Edit field */}
-                  {editingId === t.id ? (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <input
-                        autoFocus
-                        className="w-20 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                        placeholder="-300"
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
-                      />
-                      <button onClick={() => saveEdit(t)} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                      <button onClick={cancelEdit} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      <button
-                        onClick={() => startEdit(t)}
-                        className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        {t.adjustment !== null ? String(t.adjustment) : "корекție"}
-                      </button>
-                      {t.adjustment !== null && (
-                        <button
-                          onClick={async () => { await deleteSalaryAdjustment(t.id); await load(); }}
-                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
           )}
         </div>
-      )}
+
+        {hasAdjustments && (
+          <div className="flex items-center gap-2 text-xs ml-auto">
+            <span className="text-muted-foreground">Real: <span className="font-mono">{totalReal.toFixed(2)}</span></span>
+            <span className="text-muted-foreground">→</span>
+            <span className="font-mono font-medium">{totalAdjusted.toFixed(2)}</span>
+            <span className={`font-mono ${totalDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>
+              ({totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)})
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="border rounded-xl overflow-hidden">
+        {loading && <div className="text-sm text-muted-foreground text-center py-6">Se încarcă...</div>}
+
+        {!loading && txns.length === 0 && (
+          <div className="text-sm text-muted-foreground text-center py-6">
+            Nicio tranzacție găsită pentru &ldquo;{pattern}&rdquo;
+          </div>
+        )}
+
+        {!loading && txns.length > 0 && (
+          <div className="divide-y divide-border/50">
+            {txns.map((t) => (
+              <div key={t.id} className={`flex items-center gap-3 px-4 py-3 text-sm ${t.adjustment !== null ? "bg-amber-50/40 dark:bg-amber-950/15" : ""}`}>
+                <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{t.transaction_date}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-muted-foreground text-xs">{t.description}</p>
+                </div>
+
+                {/* Real amount */}
+                <span className="font-mono text-sm flex-shrink-0">{t.amount.toFixed(2)}</span>
+
+                {/* Arrow + adjusted */}
+                {t.adjustment !== null && (
+                  <>
+                    <span className="text-muted-foreground text-xs">→</span>
+                    <span className={`font-mono text-sm font-medium flex-shrink-0 ${(t.adjusted_amount ?? 0) < t.amount ? "text-amber-600 dark:text-amber-400" : "text-emerald-500"}`}>
+                      {(t.adjusted_amount ?? t.amount).toFixed(2)}
+                    </span>
+                  </>
+                )}
+
+                {/* Edit field */}
+                {editingId === t.id ? (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <input
+                      autoFocus
+                      className="w-20 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="-300"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
+                    />
+                    <button onClick={() => saveEdit(t)} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={cancelEdit} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button
+                      onClick={() => startEdit(t)}
+                      className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
+                    >
+                      <Pencil className="h-3 w-3" />
+                      {t.adjustment !== null ? String(t.adjustment) : "corecție"}
+                    </button>
+                    {t.adjustment !== null && (
+                      <button
+                        onClick={async () => { await deleteSalaryAdjustment(t.id); await load(); }}
+                        className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 export default function BlackLedger() {
+  const [tab, setTab] = useState<"filters" | "salary">("filters");
   const [filters, setFilters] = useState<HiddenFilter[]>([]);
   const [transactions, setTransactions] = useState<HiddenTransaction[]>([]);
   const [categories, setCategories] = useState<CatType[]>([]);
@@ -560,6 +581,34 @@ export default function BlackLedger() {
         </div>
       )}
 
+      {/* Tabs */}
+      <div className="flex gap-1 border-b">
+        <button
+          onClick={() => setTab("filters")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === "filters"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Filtre ascunse
+        </button>
+        <button
+          onClick={() => setTab("salary")}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+            tab === "salary"
+              ? "border-primary text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Corecție salariu
+        </button>
+      </div>
+
+      {tab === "salary" && <SalaryBlock />}
+
+      {tab === "filters" && <>
+
       {/* Per-filter stats — collapsible */}
       {!loading && filters.length > 0 && (
         <div className="border rounded-xl overflow-hidden">
@@ -586,14 +635,9 @@ export default function BlackLedger() {
                 const inc = ftxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
                 const months = new Set(ftxns.map((t) => t.transaction_date.slice(0, 7))).size;
                 const overrides = ftxns.filter((t) => t.hidden_override).length;
-                // top 3 by amount
-                const top3 = [...ftxns]
-                  .filter((t) => t.type === "expense")
-                  .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
-                  .slice(0, 3);
 
                 return (
-                  <div key={f.id} className="px-4 py-3 space-y-2">
+                  <div key={f.id} className="px-4 py-3 space-y-1.5">
                     {/* Filter name + type badge */}
                     <div className="flex items-center gap-2">
                       <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-sm ${meta.badge}`}>
@@ -613,19 +657,6 @@ export default function BlackLedger() {
                         <span className="text-amber-600 dark:text-amber-400">{overrides} excepție</span>
                       )}
                     </div>
-
-                    {/* Top expenses */}
-                    {top3.length > 0 && (
-                      <div className="space-y-0.5 pl-1">
-                        {top3.map((t) => (
-                          <div key={t.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="w-20 flex-shrink-0">{t.transaction_date}</span>
-                            <span className="flex-1 truncate">{t.description}</span>
-                            <span className="font-mono text-red-400 flex-shrink-0">{Math.abs(t.amount).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -633,9 +664,6 @@ export default function BlackLedger() {
           )}
         </div>
       )}
-
-      {/* Salary adjustments */}
-      <SalaryBlock />
 
       {/* Filters section — collapsible */}
       <div className="border rounded-xl overflow-hidden">
@@ -927,6 +955,7 @@ export default function BlackLedger() {
           );
         })}
       </div>
+      </>}
     </div>
   );
 }
