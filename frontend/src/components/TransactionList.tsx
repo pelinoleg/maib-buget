@@ -291,8 +291,14 @@ export default function TransactionList() {
     setTransactions((prev) =>
       prev.map((t) => {
         if (t.id !== txnId) return t;
-        const cat = categories.find((c) => c.id === categoryId);
-        return { ...t, category_id: categoryId, category_name: cat?.name ?? null, category_color: cat?.color ?? null };
+        const flatFind = (cats: Category[]): Category | undefined => {
+          for (const c of cats) {
+            if (c.id === categoryId) return c;
+            if (c.subcategories) { const found = flatFind(c.subcategories); if (found) return found; }
+          }
+        };
+        const cat = flatFind(categories);
+        return { ...t, category_id: categoryId, category_name: cat?.name ?? null, category_color: cat?.color ?? null, categorized_by: categoryId ? "manual" : null };
       })
     );
   };
