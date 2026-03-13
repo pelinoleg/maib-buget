@@ -46,7 +46,8 @@ import type { Category as CatType } from "./categories/types";
 import PeriodPresetBar, { type FilterState } from "@/components/PeriodPresetBar";
 import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_PRESETS, PRESET_GROUPS } from "@/lib/periodPresets";
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
-import { exportDashboardPDF } from "@/lib/pdf";
+import { exportDashboardPDF, type CategoryMonthChart } from "@/lib/pdf";
+import { getPdfChartCategories } from "@/components/Settings";
 import { currencySymbol } from "@/lib/currency";
 import { useChartEngine } from "@/lib/chartEngine";
 import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
@@ -600,12 +601,29 @@ export default function Dashboard() {
               variant="outline"
               size="sm"
               className="hidden md:inline-flex"
-              onClick={() => exportDashboardPDF({
-                dateFrom, dateTo, currency: BASE_CURRENCY,
-                totalIncome: summary.total_income, totalExpense: summary.total_expense,
-                totalTransfers: summary.total_transfers, net: summary.net,
-                categories: byCategory, months: byMonth, topExpenses,
-              })}
+              onClick={async () => {
+                const pdfCats = getPdfChartCategories();
+                let categoryCharts: CategoryMonthChart[] = [];
+                if (pdfCats.length > 0) {
+                  const results = await Promise.all(
+                    pdfCats.map((c) =>
+                      getCategoryTrend({ category_id: c.id, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), currency: BASE_CURRENCY })
+                        .then((data: {month: string; total: number}[]) => ({
+                          name: c.name, color: c.color,
+                          months: data.map((d) => ({ month: d.month, amount: d.total })),
+                        }))
+                        .catch(() => null)
+                    )
+                  );
+                  categoryCharts = results.filter(Boolean) as CategoryMonthChart[];
+                }
+                exportDashboardPDF({
+                  dateFrom, dateTo, currency: BASE_CURRENCY,
+                  totalIncome: summary.total_income, totalExpense: summary.total_expense,
+                  categories: byCategory, months: byMonth, topExpenses,
+                  categoryCharts,
+                });
+              }}
               title="Exportă PDF"
             >
               <FileDown className="h-4 w-4 mr-1" /> PDF

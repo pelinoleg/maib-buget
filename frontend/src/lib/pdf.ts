@@ -408,92 +408,93 @@ interface ComparisonItem {
   delta_pct: number | null;
 }
 
+export interface CategoryMonthChart {
+  name: string;
+  color: string;
+  months: { month: string; amount: number }[];
+}
+
 export interface DashboardPDFParams {
   dateFrom?: string;
   dateTo?: string;
   currency: string;
   totalIncome: number;
   totalExpense: number;
-  totalTransfers: number;
-  net: number;
   categories: CategorySummary[];
   months: MonthSummary[];
   topExpenses: TopExpenseItem[];
   comparison?: ComparisonItem[];
+  categoryCharts?: CategoryMonthChart[];
 }
 
 export function exportDashboardPDF(params: DashboardPDFParams) {
   const {
-    dateFrom, dateTo, currency, totalIncome, totalExpense, totalTransfers, net,
-    categories, months, topExpenses, comparison,
+    dateFrom, dateTo, currency, totalIncome, totalExpense,
+    categories, months, topExpenses, comparison, categoryCharts,
   } = params;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const w = doc.internal.pageSize.getWidth();
 
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const h = hex.replace("#", "");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+
   // Header
-  doc.setFontSize(20);
+  doc.setFontSize(16);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(30, 41, 59);
-  doc.text("Buget", 14, 18);
-  doc.setFontSize(12);
+  doc.text("Buget", 14, 16);
+  doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.setTextColor(100);
-  doc.text(ro("Raport sumar"), 14, 25);
+  doc.setTextColor(120);
+  doc.text(ro("Raport sumar"), 14, 22);
 
-  doc.setFontSize(9);
-  doc.text(new Date().toLocaleDateString("ro-RO"), w - 14, 18, { align: "right" });
+  doc.setFontSize(8);
+  doc.text(new Date().toLocaleDateString("ro-RO"), w - 14, 16, { align: "right" });
   if (dateFrom && dateTo) {
-    doc.text(`${dateFrom} - ${dateTo}`, w - 14, 24, { align: "right" });
+    doc.text(`${dateFrom} - ${dateTo}`, w - 14, 22, { align: "right" });
   }
 
-  // Summary boxes
-  const boxY = 32;
-  const boxH = 16;
-  const boxW = (w - 28 - 12) / 4;
-  const boxes = [
-    { label: "Venituri", value: `+${fmt(totalIncome)}`, color: [22, 163, 74] as [number, number, number], bg: [240, 253, 244] as [number, number, number] },
-    { label: "Cheltuieli", value: `-${fmt(totalExpense)}`, color: [239, 68, 68] as [number, number, number], bg: [254, 242, 242] as [number, number, number] },
-    { label: "Transferuri", value: fmt(totalTransfers), color: [59, 130, 246] as [number, number, number], bg: [239, 246, 255] as [number, number, number] },
-    { label: "Net", value: `${net >= 0 ? "+" : ""}${fmt(net)}`, color: net >= 0 ? [22, 163, 74] as [number, number, number] : [239, 68, 68] as [number, number, number], bg: [248, 250, 252] as [number, number, number] },
+  // Summary: 2 compact boxes (Venituri + Cheltuieli only)
+  const boxY = 28;
+  const boxH = 13;
+  const boxW = (w - 28 - 4) / 2;
+  const boxes2 = [
+    { label: "Venituri", value: `+${fmt(totalIncome)} ${currency}`, color: [22, 163, 74] as [number, number, number], bg: [240, 253, 244] as [number, number, number] },
+    { label: "Cheltuieli", value: `-${fmt(totalExpense)} ${currency}`, color: [239, 68, 68] as [number, number, number], bg: [254, 242, 242] as [number, number, number] },
   ];
-
-  boxes.forEach((b, i) => {
+  boxes2.forEach((b, i) => {
     const x = 14 + i * (boxW + 4);
     doc.setFillColor(b.bg[0], b.bg[1], b.bg[2]);
     doc.roundedRect(x, boxY, boxW, boxH, 2, 2, "F");
-    doc.setFontSize(7);
+    doc.setFontSize(6.5);
     doc.setTextColor(120);
     doc.setFont("helvetica", "normal");
-    doc.text(b.label, x + 4, boxY + 5);
-    doc.setFontSize(12);
+    doc.text(b.label, x + 3, boxY + 4.5);
+    doc.setFontSize(10);
     doc.setTextColor(b.color[0], b.color[1], b.color[2]);
     doc.setFont("helvetica", "bold");
-    doc.text(b.value, x + 4, boxY + 12);
+    doc.text(b.value, x + 3, boxY + 10);
   });
 
-  let y = boxY + boxH + 10;
+  let y = boxY + boxH + 8;
 
   // ── Pie chart + Category legend (side by side) ──
   if (categories.length > 0) {
     const grandTotal = categories.reduce((s, c) => s + c.total, 0);
 
-    doc.setFontSize(11);
+    doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
     doc.text(ro("Cheltuieli pe categorii"), 14, y);
     y += 4;
 
     // Draw pie chart on the left
-    const pieX = 55;
-    const pieY = y + 38;
-    const pieR = 32;
-
-    // Parse hex color to RGB
-    const hexToRgb = (hex: string): [number, number, number] => {
-      const h = hex.replace("#", "");
-      return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-    };
+    const pieX = 50;
+    const pieY = y + 34;
+    const pieR = 28;
 
     // Draw pie segments
     let startAngle = -Math.PI / 2; // start from top
@@ -653,6 +654,61 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     y = (doc as any).lastAutoTable.finalY + 8;
+  }
+
+  // ── Per-category monthly bar charts ──
+  if (categoryCharts && categoryCharts.length > 0) {
+    if (y > 200) { doc.addPage(); y = 20; }
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(30, 41, 59);
+    doc.text(ro("Evolutie pe categorii"), 14, y);
+    y += 6;
+
+    for (const cat of categoryCharts) {
+      if (y > 240) { doc.addPage(); y = 20; }
+      const [cr, cg, cb] = hexToRgb(cat.color || "#6366f1");
+      const maxVal = Math.max(...cat.months.map((m) => m.amount), 1);
+      const chartLeft = 40;
+      const chartRight = w - 16;
+      const chartW = chartRight - chartLeft;
+      const barH = 4;
+      const rowGap = 2;
+
+      // Category label
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(cr, cg, cb);
+      doc.setFillColor(cr, cg, cb);
+      doc.roundedRect(14, y - 2.5, 3, 3, 0.5, 0.5, "F");
+      doc.text(ro(cat.name), 19, y);
+      y += 4;
+
+      for (const m of cat.months) {
+        doc.setFontSize(6);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100);
+        doc.text(m.month, chartLeft - 2, y + barH / 2 + 1, { align: "right" });
+
+        const barW = Math.max((m.amount / maxVal) * chartW, m.amount > 0 ? 0.5 : 0);
+        if (barW > 0) {
+          doc.setFillColor(cr, cg, cb);
+          doc.roundedRect(chartLeft, y, barW, barH, 0.5, 0.5, "F");
+        }
+        if (m.amount > 0) {
+          const label = fmt(m.amount);
+          doc.setFontSize(5.5);
+          doc.setTextColor(cr, cg, cb);
+          if (barW > doc.getTextWidth(label) + 3) {
+            doc.text(label, chartLeft + barW - 1, y + barH - 0.8, { align: "right" });
+          } else {
+            doc.text(label, chartLeft + barW + 1, y + barH - 0.8);
+          }
+        }
+        y += barH + rowGap;
+      }
+      y += 5;
+    }
   }
 
   // Period comparison

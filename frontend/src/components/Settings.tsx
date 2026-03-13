@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, Trash2, Check, Save, RotateCcw, Loader2, Search, ExternalLink } from "lucide-react";
+import { AlertTriangle, Trash2, Check, Save, RotateCcw, Loader2, Search, ExternalLink, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +10,22 @@ import {
   resetAIPrompt,
   resetDatabase,
   getSuspectDuplicates,
+  getCategories,
 } from "@/lib/api";
 import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
 import { useChartEngine } from "@/lib/chartEngine";
 import { currencySymbol } from "@/lib/currency";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategorySelectItems } from "@/components/categories/CategorySelect";
+import type { Category as CatType } from "@/components/categories/types";
+
+const PDF_CAT_KEY = "pdf_chart_categories";
+export type PdfCatEntry = { id: number; name: string; color: string };
+
+export function getPdfChartCategories(): PdfCatEntry[] {
+  try { return JSON.parse(localStorage.getItem(PDF_CAT_KEY) || "[]"); } catch { return []; }
+}
 
 interface DupTxn { id: number; description: string; amount: number; type: string; account_number: string | null; account_currency: string | null; bank: string | null; category_name: string | null; source_file: string | null; }
 interface DupGroup { date: string; amount: number; transactions: DupTxn[]; }
@@ -75,6 +86,34 @@ export default function Settings() {
     setResetInput("");
   };
 
+  // PDF chart categories
+  const [allCategories, setAllCategories] = useState<CatType[]>([]);
+  const [pdfCats, setPdfCats] = useState<PdfCatEntry[]>(getPdfChartCategories);
+
+  useEffect(() => {
+    getCategories().then((cats) => setAllCategories(cats as CatType[])).catch(() => {});
+  }, []);
+
+  const addPdfCat = (idStr: string) => {
+    if (!idStr) return;
+    const id = Number(idStr);
+    if (pdfCats.some((c) => c.id === id)) return;
+    const flat: CatType[] = [];
+    const flatten = (cats: CatType[]) => { for (const c of cats) { flat.push(c); if (c.subcategories) flatten(c.subcategories); } };
+    flatten(allCategories);
+    const found = flat.find((c) => c.id === id);
+    if (!found) return;
+    const next = [...pdfCats, { id: found.id, name: found.name, color: found.color || "#6366f1" }];
+    setPdfCats(next);
+    localStorage.setItem(PDF_CAT_KEY, JSON.stringify(next));
+  };
+
+  const removePdfCat = (id: number) => {
+    const next = pdfCats.filter((c) => c.id !== id);
+    setPdfCats(next);
+    localStorage.setItem(PDF_CAT_KEY, JSON.stringify(next));
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <h1 className="hidden md:block text-2xl font-bold">Setari</h1>
@@ -130,6 +169,42 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground mt-2">
             Schimba motorul de grafice pentru toate diagramele din aplicatie.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* PDF category charts */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Categorii în raportul PDF</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Alege categoriile pentru care se vor genera grafice lunare în raportul PDF de pe pagina principală.
+          </p>
+          <Select value="" onValueChange={addPdfCat}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Adaugă categorie..." />
+            </SelectTrigger>
+            <SelectContent>
+              <CategorySelectItems categories={allCategories} />
+            </SelectContent>
+          </Select>
+          {pdfCats.length > 0 && (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {pdfCats.map((c) => (
+                <span key={c.id} className="flex items-center gap-1.5 h-7 pl-2.5 pr-1.5 rounded-full border text-xs font-medium">
+                  <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                  <button onClick={() => removePdfCat(c.id)} className="h-4 w-4 flex items-center justify-center rounded-full hover:bg-muted transition-colors">
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {pdfCats.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">Nicio categorie selectată — PDF va conține doar graficul general.</p>
+          )}
         </CardContent>
       </Card>
 

@@ -243,6 +243,14 @@ export function getTopExpenses(params: Record<string, string | number> = {}, exc
   return fetchJSON(`/dashboard/top-expenses?${qs}`);
 }
 
+export function getCategoryTrend(params: Record<string, string | number> = {}) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
+  }
+  return fetchJSON(`/dashboard/category-trend?${qs}`);
+}
+
 export function getBalanceTrend(params: Record<string, string | number> = {}) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
