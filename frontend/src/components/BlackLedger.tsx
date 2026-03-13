@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil } from "lucide-react";
 import {
   getHiddenFilters,
   createHiddenFilter,
@@ -245,10 +245,6 @@ function groupByMonth(txns: HiddenTransaction[]): Record<string, HiddenTransacti
 
 const MONTH_NAMES = ["Ianuarie", "Februarie", "Martie", "Aprilie", "Mai", "Iunie", "Iulie", "August", "Septembrie", "Octombrie", "Noiembrie", "Decembrie"];
 
-function formatMonth(key: string) {
-  const [y, m] = key.split("-");
-  return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
-}
 
 interface SalaryTxn {
   id: number;
