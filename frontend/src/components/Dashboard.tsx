@@ -669,24 +669,26 @@ export default function Dashboard() {
           return <span className={`text-[10px] font-medium ${isGood ? "text-green-600" : "text-red-500"}`}>{isUp ? "↑" : "↓"} {Math.abs(delta).toFixed(0)}%</span>;
         };
         const blocks = [
-          { key: "income", show: summaryPrefs.visible.income, value: `+${fmt(summary.total_income)}${currLabel}`, label: "Venituri", cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100", delta: <DeltaBadge delta={incDelta} /> },
-          { key: "expense", show: summaryPrefs.visible.expense, value: `-${fmt(summary.total_expense)}${currLabel}`, label: "Cheltuieli", cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100", delta: <DeltaBadge delta={expDelta} invertColor /> },
-          { key: "refunds", show: summaryPrefs.visible.refunds, value: `+${fmt(summary.total_refunds)}${currLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100", delta: <DeltaBadge delta={refDelta} /> },
-          { key: "transfers", show: summaryPrefs.visible.transfers, value: fmt(summary.total_transfers) + currLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100", delta: null },
+          { key: "income", show: summaryPrefs.visible.income, zero: summary.total_income === 0, value: `+${fmt(summary.total_income)}${currLabel}`, cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100", delta: <DeltaBadge delta={incDelta} /> },
+          { key: "expense", show: summaryPrefs.visible.expense, zero: summary.total_expense === 0, value: `-${fmt(summary.total_expense)}${currLabel}`, cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100", delta: <DeltaBadge delta={expDelta} invertColor /> },
+          { key: "refunds", show: summaryPrefs.visible.refunds, zero: summary.total_refunds === 0, value: `+${fmt(summary.total_refunds)}${currLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100", delta: <DeltaBadge delta={refDelta} /> },
+          { key: "transfers", show: summaryPrefs.visible.transfers, zero: summary.total_transfers === 0, value: fmt(summary.total_transfers) + currLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100", delta: null },
         ].filter((b) => b.show);
         if (blocks.length === 0) return null;
         const cols = blocks.length <= 2 ? `grid-cols-${blocks.length}` : blocks.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
         return (
           <div className={`grid gap-2 ${cols}`}>
             {blocks.map((b) => (
-              <Card key={b.key} className="py-0">
-                <CardContent className="px-3 py-2">
+              <Card key={b.key} className={`py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
+                <CardContent className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
                     <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>
-                      <p className={`text-sm font-bold truncate leading-none ${b.cls}`}>{b.value}</p>
-                      {b.delta && <div className="mt-0.5">{b.delta}</div>}
+                    <div className="min-w-0 flex-1">
+                      {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
+                      <div className="flex items-baseline gap-1.5 flex-wrap">
+                        <p className={`text-sm font-bold leading-none ${b.cls}`}>{b.value}</p>
+                        {b.delta}
+                      </div>
                     </div>
                   </div>
                 </CardContent>

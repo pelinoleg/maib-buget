@@ -697,23 +697,23 @@ export default function TransactionList() {
       {(() => {
         const fmtN = (n: number) => n.toLocaleString("ro-RO", { minimumFractionDigits: 2 });
         const blocks = [
-          { key: "income", show: summaryPrefs.visible.income, value: `+${fmtN(sumIncome)}${summCurrLabel}`, label: "Venituri", cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100" },
-          { key: "expense", show: summaryPrefs.visible.expense, value: `-${fmtN(sumExpense)}${summCurrLabel}`, label: "Cheltuieli", cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100" },
-          { key: "refunds", show: summaryPrefs.visible.refunds, value: `+${fmtN(sumRefunds)}${summCurrLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100" },
-          { key: "transfers", show: summaryPrefs.visible.transfers, value: fmtN(sumTransfers) + summCurrLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100" },
+          { key: "income", show: summaryPrefs.visible.income, zero: sumIncome === 0, value: `+${fmtN(sumIncome)}${summCurrLabel}`, cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100" },
+          { key: "expense", show: summaryPrefs.visible.expense, zero: sumExpense === 0, value: `-${fmtN(sumExpense)}${summCurrLabel}`, cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100" },
+          { key: "refunds", show: summaryPrefs.visible.refunds, zero: sumRefunds === 0, value: `+${fmtN(sumRefunds)}${summCurrLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100" },
+          { key: "transfers", show: summaryPrefs.visible.transfers, zero: sumTransfers === 0, value: fmtN(sumTransfers) + summCurrLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100" },
         ].filter((b) => b.show);
         if (blocks.length === 0) return null;
         const cols = blocks.length <= 2 ? `grid-cols-${blocks.length}` : blocks.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
         return (
           <div className={`grid gap-2 ${cols}`}>
             {blocks.map((b) => (
-              <Card key={b.key} className="py-0">
-                <CardContent className="px-3 py-2">
+              <Card key={b.key} className={`py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
+                <CardContent className="px-3 py-1.5">
                   <div className="flex items-center gap-2">
                     <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>
-                      <p className={`text-sm font-bold truncate leading-none ${b.cls}`}>{b.value}</p>
+                    <div className="min-w-0 flex-1">
+                      {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
+                      <p className={`text-sm font-bold leading-none ${b.cls}`}>{b.value}</p>
                     </div>
                   </div>
                 </CardContent>
