@@ -370,57 +370,65 @@ def top_expenses(
     bank: Optional[str] = None,
     currency: Optional[str] = None,
     limit: int = 10,
-    exclude_categories: Optional[list[str]] = Query(None),
+    exclude_category_ids: Optional[list[int]] = Query(None),
 ):
-    """Top expenses by amount."""
+    """Top expenses by amount. exclude_category_ids excludes those categories and all their descendants."""
     hidden_ids = compute_hidden_ids(db)
+
+    # Expand exclude ids to include all descendants
+    all_cats = db.query(Category).all()
+    def _collect_descendants(pid: int) -> list[int]:
+        result = []
+        for c in all_cats:
+            if c.parent_id == pid:
+                result.append(c.id)
+                result.extend(_collect_descendants(c.id))
+        return result
+
+    excluded_ids_expanded: set[int] = set()
+    for cid in (exclude_category_ids or []):
+        excluded_ids_expanded.add(cid)
+        excluded_ids_expanded.update(_collect_descendants(cid))
+
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
     ).filter(Transaction.type == "expense")
     q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
-    if exclude_categories:
-        # Exclude transactions whose category name is in the list; keep uncategorized
-        excluded_ids = db.query(Category.id).filter(Category.name.in_(exclude_categories)).subquery()
-        q = q.filter(~Transaction.category_id.in_(excluded_ids) | Transaction.category_id.is_(None))
+    if excluded_ids_expanded:
+        q = q.filter(
+            ~Transaction.category_id.in_(excluded_ids_expanded) | Transaction.category_id.is_(None)
+        )
+
+    def _serialize(t, amount):
+        # Walk up to root category for display
+        cat_id = t.category_id
+        cat_name = t.category.name if t.category else None
+        return {
+            "id": t.id,
+            "date": t.transaction_date,
+            "description": t.description,
+            "amount": amount,
+            "original_amount": t.original_amount,
+            "original_currency": t.original_currency,
+            "category_id": cat_id,
+            "category_name": cat_name,
+            "note": t.note,
+        }
 
     if currency:
-        # Pre-filter: load top N*10 by raw amount to avoid loading entire table
         txns = q.order_by(Transaction.amount.asc()).limit(limit * 10).all()
         items = []
         for t in txns:
             cur = t.account.currency if t.account else "MDL"
             converted = _convert(t.amount, cur, currency, t.transaction_date)
-            items.append({
-                "id": t.id,
-                "date": t.transaction_date,
-                "description": t.description,
-                "amount": round(converted, 2),
-                "original_amount": t.original_amount,
-                "original_currency": t.original_currency,
-                "category_name": t.category.name if t.category else None,
-                "currency": currency,
-                "note": t.note,
-            })
+            items.append(_serialize(t, round(converted, 2)))
         items.sort(key=lambda x: x["amount"], reverse=True)
         return items[:limit]
 
     txns = q.order_by(Transaction.amount.asc()).limit(limit).all()
-
-    return [
-        {
-            "id": t.id,
-            "date": t.transaction_date,
-            "description": t.description,
-            "amount": round(abs(t.amount), 2),
-            "original_amount": t.original_amount,
-            "original_currency": t.original_currency,
-            "category_name": t.category.name if t.category else None,
-            "note": t.note,
-        }
-        for t in txns
-    ]
+    return [_serialize(t, round(abs(t.amount), 2)) for t in txns]
 
 
 @router.get("/balance-trend")

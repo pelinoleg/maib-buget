@@ -81,6 +81,7 @@ interface TopExpense {
   amount: number;
   original_amount: number;
   original_currency: string;
+  category_id: number | null;
   category_name: string | null;
   note: string | null;
 }
@@ -176,18 +177,20 @@ export default function Dashboard() {
     try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
   });
 
-  // Top expenses — exclude categories (persisted)
-  const [excludedCategories, setExcludedCategories] = useState<Set<string>>(() => {
+  // Top expenses — exclude categories by id (persisted), stored as {id, name}[]
+  const [excludedCategories, setExcludedCategories] = useState<{id: number; name: string}[]>(() => {
     try {
-      const saved = localStorage.getItem("dash_top_exclude");
-      return saved ? new Set(JSON.parse(saved)) : new Set<string>();
-    } catch { return new Set<string>(); }
+      const saved = localStorage.getItem("dash_top_exclude_ids");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
   });
-  const toggleExcludeCategory = (name: string) => {
+  const excludedCategoryIds = excludedCategories.map((c) => c.id);
+  const toggleExcludeCategory = (id: number, name: string) => {
     setExcludedCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      localStorage.setItem("dash_top_exclude", JSON.stringify([...next]));
+      const next = prev.some((c) => c.id === id)
+        ? prev.filter((c) => c.id !== id)
+        : [...prev, { id, name }];
+      localStorage.setItem("dash_top_exclude_ids", JSON.stringify(next));
       return next;
     });
   };
@@ -307,7 +310,7 @@ export default function Dashboard() {
       getDashboardSummary(params).then(setSummary),
       getExpensesByCategory(params).then(setByCategory),
       getIncomeExpenseByMonth(params).then(setByMonth),
-      getTopExpenses(params, [...excludedCategories]).then(setTopExpenses),
+      getTopExpenses(params, excludedCategoryIds).then(setTopExpenses),
     ];
 
     // Fetch previous period for comparison if date range is set
@@ -331,7 +334,7 @@ export default function Dashboard() {
 
   // Reload only top expenses when excluded categories change
   const reloadTopExpenses = () => {
-    getTopExpenses(baseParams(), [...excludedCategories]).then(setTopExpenses).catch(() => {});
+    getTopExpenses(baseParams(), excludedCategoryIds).then(setTopExpenses).catch(() => {});
   };
 
   useEffect(() => {
@@ -339,7 +342,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(reload, [dateFrom, dateTo, accountId, bankFilter]);
-  useEffect(reloadTopExpenses, [excludedCategories]);
+  useEffect(reloadTopExpenses, [excludedCategoryIds]);
 
   const loadCategoryTrend = async (catId: number | null, name: string, color: string) => {
     if (catId === trendCategoryId) {
@@ -1011,19 +1014,26 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {(() => {
-              // Categories from the visible top expenses + any currently excluded (so user can un-exclude)
-              const fromTop = topExpenses.map((t) => t.category_name).filter(Boolean) as string[];
-              const categoryNames = [...new Set([...fromTop, ...excludedCategories])];
+              // Pills: categories from visible top expenses + excluded ones (so they can be un-excluded)
+              const visibleCats = topExpenses
+                .filter((t) => t.category_id != null)
+                .map((t) => ({ id: t.category_id!, name: t.category_name ?? `#${t.category_id}` }));
+              // Deduplicate by id
+              const seenIds = new Set<number>();
+              const allPillCats: {id: number; name: string}[] = [];
+              for (const c of [...visibleCats, ...excludedCategories]) {
+                if (!seenIds.has(c.id)) { seenIds.add(c.id); allPillCats.push(c); }
+              }
               return (
                 <>
-                  {categoryNames.length > 1 && (
+                  {allPillCats.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-3">
-                      {categoryNames.map((name) => {
-                        const isExcluded = excludedCategories.has(name);
+                      {allPillCats.map(({ id, name }) => {
+                        const isExcluded = excludedCategoryIds.includes(id);
                         return (
                           <button
-                            key={name}
-                            onClick={() => toggleExcludeCategory(name)}
+                            key={id}
+                            onClick={() => toggleExcludeCategory(id, name)}
                             className={`px-2 py-0.5 rounded-full text-[11px] border transition-colors ${
                               isExcluded
                                 ? "bg-muted text-muted-foreground line-through border-transparent"

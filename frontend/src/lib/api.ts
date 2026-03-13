@@ -234,12 +234,12 @@ export function getIncomeExpenseByMonth(params: Record<string, string | number> 
   return fetchJSON(`/dashboard/by-month?${qs}`);
 }
 
-export function getTopExpenses(params: Record<string, string | number> = {}, excludeCategories: string[] = []) {
+export function getTopExpenses(params: Record<string, string | number> = {}, excludeCategoryIds: number[] = []) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null && v !== "") qs.set(k, String(v));
   }
-  for (const cat of excludeCategories) qs.append("exclude_categories", cat);
+  for (const id of excludeCategoryIds) qs.append("exclude_category_ids", String(id));
   return fetchJSON(`/dashboard/top-expenses?${qs}`);
 }
 
