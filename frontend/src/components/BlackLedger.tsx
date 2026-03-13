@@ -502,6 +502,7 @@ export default function BlackLedger() {
   const [showAddFilter, setShowAddFilter] = useState(false);
   const [editingFilter, setEditingFilter] = useState<HiddenFilter | null>(null);
   const [selectedFilterId, setSelectedFilterId] = useState<number | "override" | null>(null);
+  const [statsExpanded, setStatsExpanded] = useState(false);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -570,30 +571,29 @@ export default function BlackLedger() {
   const grouped = groupByMonth(visibleTransactions);
   const months = Object.keys(grouped).sort().reverse();
 
+  // Group months by year for nested display
+  const byYear: Record<string, string[]> = {};
+  for (const m of months) {
+    const y = m.slice(0, 4);
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(m);
+  }
+  const years = Object.keys(byYear).sort().reverse();
+
   // Stats (always from all transactions)
   const overrideCount = transactions.filter((t) => t.hidden_override).length;
 
-  // All months collapsed by default — initialize with all keys when data loads
+  // All months collapsed by default except the most recent — initialize when data loads
   useEffect(() => {
     if (transactions.length > 0) {
-      const allMonths = Object.keys(groupByMonth(transactions));
-      setCollapsedMonths(new Set(allMonths));
+      const allMonths = Object.keys(groupByMonth(transactions)).sort().reverse();
+      // collapse all except the first (most recent)
+      setCollapsedMonths(new Set(allMonths.slice(1)));
     }
   }, [transactions]);
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="h-8 w-8 rounded-lg bg-gray-900 dark:bg-gray-100 flex items-center justify-center">
-          <Filter className="h-4 w-4 text-gray-100 dark:text-gray-900" />
-        </div>
-        <div>
-          <h1 className="text-xl font-semibold">Contabilitate privată</h1>
-          <p className="text-xs text-muted-foreground">Tranzacții excluse din statistici principale</p>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="flex gap-1 border-b">
         <button
@@ -621,7 +621,7 @@ export default function BlackLedger() {
       {tab === "salary" && <SalaryBlock />}
 
       {tab === "filters" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
 
           {/* LEFT: Filter list */}
           <div className="space-y-3">
@@ -727,6 +727,44 @@ export default function BlackLedger() {
                 );
               })}
             </div>
+
+            {/* Statistici pe filtre — collapsible at bottom of sidebar */}
+            {!loading && filters.length > 0 && transactions.length > 0 && (
+              <div className="border rounded-lg overflow-hidden mt-2">
+                <button
+                  onClick={() => setStatsExpanded((v) => !v)}
+                  className="w-full flex items-center gap-2 px-3 py-2 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+                >
+                  {statsExpanded ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className="text-xs font-medium flex-1">Statistici pe filtre</span>
+                </button>
+                {statsExpanded && (
+                  <div className="divide-y divide-border/50">
+                    {filters.map((f) => {
+                      const ftxns = transactions.filter((t) => t.matched_filter?.id === f.id);
+                      if (ftxns.length === 0) return null;
+                      const meta = MATCH_TYPE_META[f.match_type];
+                      const exp = ftxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+                      const inc = ftxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+                      const monthCount = new Set(ftxns.map((t) => t.transaction_date.slice(0, 7))).size;
+                      return (
+                        <div key={f.id} className="px-3 py-2.5 space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`text-[10px] font-mono px-1 py-0.5 rounded-sm ${meta.badge}`}>{meta.label}</span>
+                            <span className="text-xs font-medium truncate">{f.name}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <span className="text-muted-foreground">{ftxns.length} txn · {monthCount} luni</span>
+                            {exp > 0 && <span className="text-red-500 font-mono">−{exp.toFixed(2)}</span>}
+                            {inc > 0 && <span className="text-emerald-500 font-mono">+{inc.toFixed(2)}</span>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* RIGHT: Filter pills + Transactions */}
@@ -812,111 +850,135 @@ export default function BlackLedger() {
               </div>
             )}
 
-            <div className="space-y-2">
-              {months.map((monthKey) => {
-                const monthTxns = grouped[monthKey];
-                const collapsed = collapsedMonths.has(monthKey);
-                const totalExp = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
-                const totalInc = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+            <div className="space-y-4">
+              {years.map((year) => {
+                const yearMonths = byYear[year];
+                const yearTxns = yearMonths.flatMap((m) => grouped[m]);
+                const yearExp = yearTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+                const yearInc = yearTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
 
                 return (
-                  <div key={monthKey} className="border rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => toggleMonth(monthKey)}
-                      className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-                    >
-                      {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                      <span className="font-medium text-sm flex-1">{formatMonth(monthKey)}</span>
-                      <span className="text-xs text-muted-foreground mr-2">{monthTxns.length}</span>
-                      {totalExp > 0 && (
-                        <span className="text-xs text-red-500 font-mono">−{totalExp.toFixed(2)}</span>
-                      )}
-                      {totalInc > 0 && (
-                        <span className="text-xs text-emerald-500 font-mono ml-1">+{totalInc.toFixed(2)}</span>
-                      )}
-                    </button>
+                  <div key={year}>
+                    {/* Year header */}
+                    <div className="flex items-center gap-3 mb-2 px-1">
+                      <span className="text-sm font-semibold text-muted-foreground">{year}</span>
+                      <div className="flex-1 h-px bg-border" />
+                      <span className="text-xs text-muted-foreground">{yearTxns.length}</span>
+                      {yearExp > 0 && <span className="text-xs text-red-500 font-mono">−{yearExp.toFixed(2)}</span>}
+                      {yearInc > 0 && <span className="text-xs text-emerald-500 font-mono">+{yearInc.toFixed(2)}</span>}
+                    </div>
 
-                    {!collapsed && (
-                      <div className="divide-y divide-border/50">
-                        {monthTxns.map((txn) => (
-                          <div
-                            key={txn.id}
-                            className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                              txn.hidden_override
-                                ? "bg-amber-50/50 dark:bg-amber-950/20"
-                                : "hover:bg-muted/20"
-                            }`}
-                          >
+                    <div className="space-y-1.5">
+                      {yearMonths.map((monthKey) => {
+                        const monthTxns = grouped[monthKey];
+                        const collapsed = collapsedMonths.has(monthKey);
+                        const totalExp = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+                        const totalInc = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+                        const [, m] = monthKey.split("-");
+                        const monthLabel = MONTH_NAMES[parseInt(m) - 1];
+
+                        return (
+                          <div key={monthKey} className="border rounded-lg overflow-hidden">
                             <button
-                              onClick={() => handleToggle(txn.id)}
-                              disabled={togglingId === txn.id}
-                              className={`h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md transition-colors ${
-                                txn.hidden_override
-                                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/40"
-                                  : "hover:bg-accent text-muted-foreground"
-                              }`}
-                              title={txn.hidden_override ? "Ascunde din nou" : "Arată în statistici principale"}
+                              onClick={() => toggleMonth(monthKey)}
+                              className="w-full flex items-center gap-3 px-4 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
                             >
-                              {togglingId === txn.id ? (
-                                <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                              ) : txn.hidden_override ? (
-                                <Eye className="h-3.5 w-3.5" />
-                              ) : (
-                                <EyeOff className="h-3.5 w-3.5" />
+                              {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                              <span className="font-medium text-sm flex-1">{monthLabel}</span>
+                              <span className="text-xs text-muted-foreground mr-2">{monthTxns.length}</span>
+                              {totalExp > 0 && (
+                                <span className="text-xs text-red-500 font-mono">−{totalExp.toFixed(2)}</span>
+                              )}
+                              {totalInc > 0 && (
+                                <span className="text-xs text-emerald-500 font-mono ml-1">+{totalInc.toFixed(2)}</span>
                               )}
                             </button>
 
-                            <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{txn.transaction_date}</span>
-
-                            <div className="flex-1 min-w-0">
-                              <p className={`truncate ${txn.hidden_override ? "text-foreground" : "text-muted-foreground"}`}>
-                                {txn.description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {txn.category_name && (
-                                  <span
-                                    className="text-xs px-1.5 py-0.5 rounded-full text-white"
-                                    style={{ backgroundColor: txn.category_color || "#94a3b8" }}
+                            {!collapsed && (
+                              <div className="divide-y divide-border/50">
+                                {monthTxns.map((txn) => (
+                                  <div
+                                    key={txn.id}
+                                    className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                                      txn.hidden_override
+                                        ? "bg-amber-50/50 dark:bg-amber-950/20"
+                                        : "hover:bg-muted/20"
+                                    }`}
                                   >
-                                    {txn.category_name}
-                                  </span>
-                                )}
-                                {txn.matched_filter && (
-                                  <span className="text-xs text-muted-foreground">
+                                    <button
+                                      onClick={() => handleToggle(txn.id)}
+                                      disabled={togglingId === txn.id}
+                                      className={`h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-md transition-colors ${
+                                        txn.hidden_override
+                                          ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/40"
+                                          : "hover:bg-accent text-muted-foreground"
+                                      }`}
+                                      title={txn.hidden_override ? "Ascunde din nou" : "Arată în statistici principale"}
+                                    >
+                                      {togglingId === txn.id ? (
+                                        <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                      ) : txn.hidden_override ? (
+                                        <Eye className="h-3.5 w-3.5" />
+                                      ) : (
+                                        <EyeOff className="h-3.5 w-3.5" />
+                                      )}
+                                    </button>
+
+                                    <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{txn.transaction_date}</span>
+
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`truncate ${txn.hidden_override ? "text-foreground" : "text-muted-foreground"}`}>
+                                        {txn.description}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        {txn.category_name && (
+                                          <span
+                                            className="text-xs px-1.5 py-0.5 rounded-full text-white"
+                                            style={{ backgroundColor: txn.category_color || "#94a3b8" }}
+                                          >
+                                            {txn.category_name}
+                                          </span>
+                                        )}
+                                        {txn.matched_filter && (
+                                          <span className="text-xs text-muted-foreground">
+                                            {txn.hidden_override ? (
+                                              <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                                                <AlertCircle className="h-3 w-3" />
+                                                excepție din &ldquo;{txn.matched_filter.name}&rdquo;
+                                              </span>
+                                            ) : (
+                                              <span>filtru: {txn.matched_filter.name}</span>
+                                            )}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    <div className="text-right flex-shrink-0">
+                                      <p className={`font-mono text-sm font-medium ${txn.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                                        {txn.type === "income" ? "+" : ""}{Math.abs(txn.amount).toFixed(2)}
+                                        <span className="text-xs ml-1 text-muted-foreground">{txn.account_currency}</span>
+                                      </p>
+                                      {txn.original_currency && txn.original_currency !== txn.account_currency && (
+                                        <p className="text-xs text-muted-foreground font-mono">
+                                          {Math.abs(txn.original_amount || txn.amount).toFixed(2)} {txn.original_currency}
+                                        </p>
+                                      )}
+                                    </div>
+
                                     {txn.hidden_override ? (
-                                      <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                                        <AlertCircle className="h-3 w-3" />
-                                        excepție din &ldquo;{txn.matched_filter.name}&rdquo;
-                                      </span>
+                                      <span title="Vizibil în statistici"><Check className="h-4 w-4 text-amber-500 flex-shrink-0" /></span>
                                     ) : (
-                                      <span>filtru: {txn.matched_filter.name}</span>
+                                      <span title="Ascuns din statistici"><X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" /></span>
                                     )}
-                                  </span>
-                                )}
+                                  </div>
+                                ))}
                               </div>
-                            </div>
-
-                            <div className="text-right flex-shrink-0">
-                              <p className={`font-mono text-sm font-medium ${txn.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
-                                {txn.type === "income" ? "+" : ""}{Math.abs(txn.amount).toFixed(2)}
-                                <span className="text-xs ml-1 text-muted-foreground">{txn.account_currency}</span>
-                              </p>
-                              {txn.original_currency && txn.original_currency !== txn.account_currency && (
-                                <p className="text-xs text-muted-foreground font-mono">
-                                  {Math.abs(txn.original_amount || txn.amount).toFixed(2)} {txn.original_currency}
-                                </p>
-                              )}
-                            </div>
-
-                            {txn.hidden_override ? (
-                              <span title="Vizibil în statistici"><Check className="h-4 w-4 text-amber-500 flex-shrink-0" /></span>
-                            ) : (
-                              <span title="Ascuns din statistici"><X className="h-4 w-4 text-muted-foreground/40 flex-shrink-0" /></span>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
