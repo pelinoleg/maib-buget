@@ -187,6 +187,7 @@ export default function TransactionList() {
   const [bankFilter, setBankFilter] = useState(searchParams.get("bank") || saved.bankFilter || "");
   const [typeFilter, setTypeFilter] = useState(searchParams.get("type") || saved.typeFilter || "");
   const [categoryFilter, setCategoryFilter] = useState(searchParams.get("category_id") || saved.categoryFilter || "");
+  const [exactCategory, setExactCategory] = useState(false);
   const savedPreset = (saved.activePeriodPreset !== undefined ? saved.activePeriodPreset : defaultPreset) as PeriodPresetKey | null;
   const savedOffset = (saved.presetOffset ?? 0) as number;
   const savedDates = savedPreset ? computeDatesForPreset(savedPreset, savedOffset) : { dateFrom: saved.dateFrom || "", dateTo: saved.dateTo || "" };
@@ -253,6 +254,7 @@ export default function TransactionList() {
     if (bankFilter) params.bank = bankFilter;
     if (typeFilter) params.type = typeFilter;
     if (categoryFilter) params.category_id = categoryFilter;
+    if (categoryFilter && categoryFilter !== "none" && exactCategory) params.exact_category = true;
     if (dateFrom) params.date_from = dateFrom;
     if (dateTo) params.date_to = dateTo;
     if (sortBy) params.sort = sortBy;
@@ -281,7 +283,7 @@ export default function TransactionList() {
       }).finally(() => setLoading(false));
     }, DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [page, search, accountFilter, bankFilter, typeFilter, categoryFilter, dateFrom, dateTo, includeTransfers, showAll, sortBy, refreshKey]);
+  }, [page, search, accountFilter, bankFilter, typeFilter, categoryFilter, exactCategory, dateFrom, dateTo, includeTransfers, showAll, sortBy, refreshKey]);
 
   const handleCategoryChange = async (txnId: number, catId: string) => {
     const categoryId = catId === "none" ? null : parseInt(catId);
@@ -584,6 +586,17 @@ export default function TransactionList() {
               <CategorySelectItems categories={categories.filter(c => !c.parent_id) as any} />
             </SelectContent>
           </Select>
+          {categoryFilter && categoryFilter !== "none" && (
+            <label className="flex items-center gap-2 mt-1.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={exactCategory}
+                onChange={(e) => { setExactCategory(e.target.checked); setPage(0); }}
+                className="h-3.5 w-3.5 rounded border"
+              />
+              <span className="text-xs text-muted-foreground">Doar această categorie (fără subcategorii)</span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -773,33 +786,33 @@ export default function TransactionList() {
               >
                 <CheckSquare className="h-4 w-4 mr-1" /> Selectare
               </Button>
-              <Button variant="outline" size="sm" onClick={exportCSV} disabled={!!exporting} title="Exportă CSV" className="hidden md:inline-flex">
+              <Button variant="outline" size="sm" onClick={exportCSV} disabled={!!exporting} title="Exportă CSV" className="hidden">
                 {exporting === "csv" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />} CSV
               </Button>
               <Button variant="outline" size="sm" onClick={exportPDF} disabled={!!exporting} title="Exportă PDF" className="hidden md:inline-flex">
                 {exporting === "pdf" ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <FileDown className="h-4 w-4 mr-1" />} PDF
               </Button>
 
-              {!showAll && (
+              {!showAll && totalPages > 1 && (
                 <>
                   <Button className="md:ml-4" variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
-                    {page + 1}/{totalPages || 1}
+                    {page + 1}/{totalPages}
                   </span>
                   <Button className="md:mr-4" variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
 
                   <Button
-                variant={showAll ? "default" : "outline"}
-                size="sm"
-                onClick={() => { setShowAll(!showAll); setPage(0); }}
-                className="hidden md:inline-flex"
-              >
-                {showAll ? "Paginare" : "Toate"}
-              </Button>
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { setShowAll(!showAll); setPage(0); }}
+                    className="hidden md:inline-flex"
+                  >
+                    Toate
+                  </Button>
                 </>
               )}
             </div>
