@@ -50,7 +50,7 @@ class RuleMerge(BaseModel):
 @router.get("")
 def list_categories(db: Session = Depends(get_db)):
     from sqlalchemy import func
-    categories = db.query(Category).order_by(Category.name).all()
+    categories = db.query(Category).order_by(Category.id).all()
 
     # Single query to get all transaction counts per category
     counts = dict(

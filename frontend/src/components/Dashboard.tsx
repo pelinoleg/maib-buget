@@ -244,20 +244,27 @@ export default function Dashboard() {
     try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
   });
 
-  // Top expenses — exclude categories by id (persisted), stored as {id, name}[]
+  // Top expenses — exclude categories by id (persisted)
   const [excludedCategories, setExcludedCategories] = useState<{id: number; name: string}[]>(() => {
     try {
       const saved = localStorage.getItem("dash_top_exclude_ids");
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
   });
-  const excludedCategoryIds = excludedCategories.map((c) => c.id);
+  // Stable array of ids — only changes when excludedCategories changes
+  const [excludedCategoryIds, setExcludedCategoryIds] = useState<number[]>(() => {
+    try {
+      const saved = localStorage.getItem("dash_top_exclude_ids");
+      return saved ? (JSON.parse(saved) as {id: number}[]).map((c) => c.id) : [];
+    } catch { return []; }
+  });
   const toggleExcludeCategory = (id: number, name: string) => {
     setExcludedCategories((prev) => {
       const next = prev.some((c) => c.id === id)
         ? prev.filter((c) => c.id !== id)
         : [...prev, { id, name }];
       localStorage.setItem("dash_top_exclude_ids", JSON.stringify(next));
+      setExcludedCategoryIds(next.map((c) => c.id));
       return next;
     });
   };
