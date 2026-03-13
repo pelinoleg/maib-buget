@@ -261,6 +261,8 @@ interface SalaryTxn {
   adjusted_amount: number | null;
 }
 
+type SalaryPattern = { text: string; match_type: "contains" | "regex" };
+
 function SalaryBlock() {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState(currentYear);
@@ -269,25 +271,40 @@ function SalaryBlock() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
-  const [pattern, setPattern] = useState("web development");
-  const [editingPattern, setEditingPattern] = useState(false);
-  const [patternDraft, setPatternDraft] = useState("web development");
+
+  // Multiple patterns
+  const [patterns, setPatterns] = useState<SalaryPattern[]>([
+    { text: "web development", match_type: "contains" },
+  ]);
+  const [addingPattern, setAddingPattern] = useState(false);
+  const [newPatternText, setNewPatternText] = useState("");
+  const [newPatternType, setNewPatternType] = useState<"contains" | "regex">("contains");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getSalaryTransactions({ year, pattern });
+      const data = await getSalaryTransactions({ year, patterns });
       setTxns(data.transactions);
     } finally {
       setLoading(false);
     }
-  }, [year, pattern]);
+  }, [year, patterns]);
 
   useEffect(() => { load(); }, [load]);
 
+  const addPattern = () => {
+    if (!newPatternText.trim()) return;
+    setPatterns((prev) => [...prev, { text: newPatternText.trim(), match_type: newPatternType }]);
+    setNewPatternText("");
+    setAddingPattern(false);
+  };
+
+  const removePattern = (i: number) => setPatterns((prev) => prev.filter((_, idx) => idx !== i));
+
   const startEdit = (t: SalaryTxn) => {
     setEditingId(t.id);
-    setEditValue(t.adjustment !== null ? String(t.adjustment) : "");
+    // show absolute value — user just types the deduction amount
+    setEditValue(t.adjustment !== null ? String(Math.abs(t.adjustment)) : "");
   };
 
   const saveEdit = async (txn: SalaryTxn) => {
@@ -297,7 +314,8 @@ function SalaryBlock() {
       if (editValue.trim() === "" || isNaN(val)) {
         if (txn.adjustment !== null) await deleteSalaryAdjustment(txn.id);
       } else {
-        await upsertSalaryAdjustment({ transaction_id: txn.id, adjustment: val });
+        // always store as negative (deduction)
+        await upsertSalaryAdjustment({ transaction_id: txn.id, adjustment: -Math.abs(val) });
       }
       setEditingId(null);
       await load();
@@ -315,57 +333,84 @@ function SalaryBlock() {
 
   return (
     <div className="space-y-4">
-      {/* Pattern + year toolbar */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-            <ChevronRight className="h-4 w-4 rotate-180" />
-          </button>
-          <span className="text-sm font-medium w-12 text-center">{year}</span>
-          <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-1">
-          {editingPattern ? (
-            <>
-              <input
-                autoFocus
-                className="h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring flex-1 min-w-0"
-                value={patternDraft}
-                onChange={(e) => setPatternDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") { setPattern(patternDraft); setEditingPattern(false); }
-                  if (e.key === "Escape") { setPatternDraft(pattern); setEditingPattern(false); }
-                }}
-              />
-              <button onClick={() => { setPattern(patternDraft); setEditingPattern(false); }} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                <Check className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={() => { setPatternDraft(pattern); setEditingPattern(false); }} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => { setPatternDraft(pattern); setEditingPattern(true); }}
-              className="flex items-center gap-1.5 h-7 px-2.5 text-xs rounded-md border hover:bg-accent transition-colors text-muted-foreground font-mono"
-            >
-              <Pencil className="h-3 w-3" />
-              {pattern}
+      {/* Toolbar: year + patterns */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Year nav */}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+              <ChevronRight className="h-4 w-4 rotate-180" />
             </button>
+            <span className="text-sm font-medium w-12 text-center">{year}</span>
+            <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          {/* Pattern pills */}
+          <div className="flex items-center gap-1.5 flex-wrap flex-1">
+            {patterns.map((p, i) => (
+              <span key={i} className={`flex items-center gap-1 h-6 pl-2 pr-1 text-xs rounded-full border font-mono ${
+                p.match_type === "regex"
+                  ? "bg-violet-500/10 border-violet-400/40 text-violet-700 dark:text-violet-300"
+                  : "bg-blue-500/10 border-blue-400/40 text-blue-700 dark:text-blue-300"
+              }`}>
+                <span className="opacity-60">{p.match_type === "regex" ? "/" : ""}</span>
+                {p.text}
+                <span className="opacity-60">{p.match_type === "regex" ? "/" : ""}</span>
+                <button onClick={() => removePattern(i)} className="ml-0.5 h-4 w-4 flex items-center justify-center rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </span>
+            ))}
+            {!addingPattern && (
+              <button
+                onClick={() => setAddingPattern(true)}
+                className="h-6 px-2 text-xs rounded-full border border-dashed hover:bg-accent transition-colors text-muted-foreground flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> patern
+              </button>
+            )}
+          </div>
+
+          {/* Totals */}
+          {hasAdjustments && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground ml-auto">
+              <span className="font-mono">{totalReal.toFixed(2)}</span>
+              <span>→</span>
+              <span className="font-mono font-medium text-foreground">{totalAdjusted.toFixed(2)}</span>
+              <span className={`font-mono ${totalDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>
+                ({totalDiff.toFixed(2)})
+              </span>
+            </div>
           )}
         </div>
 
-        {hasAdjustments && (
-          <div className="flex items-center gap-2 text-xs ml-auto">
-            <span className="text-muted-foreground">Real: <span className="font-mono">{totalReal.toFixed(2)}</span></span>
-            <span className="text-muted-foreground">→</span>
-            <span className="font-mono font-medium">{totalAdjusted.toFixed(2)}</span>
-            <span className={`font-mono ${totalDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>
-              ({totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)})
-            </span>
+        {/* Add pattern inline form */}
+        {addingPattern && (
+          <div className="flex items-center gap-2">
+            <select
+              className="h-7 px-2 text-xs rounded-md border bg-background focus:outline-none"
+              value={newPatternType}
+              onChange={(e) => setNewPatternType(e.target.value as "contains" | "regex")}
+            >
+              <option value="contains">conține</option>
+              <option value="regex">regex</option>
+            </select>
+            <input
+              autoFocus
+              className="h-7 px-2 text-xs font-mono rounded-md border bg-background focus:outline-none focus:ring-1 focus:ring-ring flex-1"
+              placeholder="ex: web development"
+              value={newPatternText}
+              onChange={(e) => setNewPatternText(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addPattern(); if (e.key === "Escape") setAddingPattern(false); }}
+            />
+            <button onClick={addPattern} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              <Check className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setAddingPattern(false)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+              <X className="h-3.5 w-3.5" />
+            </button>
           </div>
         )}
       </div>
@@ -375,7 +420,7 @@ function SalaryBlock() {
 
         {!loading && txns.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-6">
-            Nicio tranzacție găsită pentru &ldquo;{pattern}&rdquo;
+            Nicio tranzacție găsită
           </div>
         )}
 
@@ -395,7 +440,7 @@ function SalaryBlock() {
                 {t.adjustment !== null && (
                   <>
                     <span className="text-muted-foreground text-xs">→</span>
-                    <span className={`font-mono text-sm font-medium flex-shrink-0 ${(t.adjusted_amount ?? 0) < t.amount ? "text-amber-600 dark:text-amber-400" : "text-emerald-500"}`}>
+                    <span className="font-mono text-sm font-medium flex-shrink-0 text-amber-600 dark:text-amber-400">
                       {(t.adjusted_amount ?? t.amount).toFixed(2)}
                     </span>
                   </>
@@ -404,10 +449,11 @@ function SalaryBlock() {
                 {/* Edit field */}
                 {editingId === t.id ? (
                   <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground">−</span>
                     <input
                       autoFocus
-                      className="w-20 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                      placeholder="-300"
+                      className="w-16 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                      placeholder="300"
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
@@ -426,7 +472,7 @@ function SalaryBlock() {
                       className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
                     >
                       <Pencil className="h-3 w-3" />
-                      {t.adjustment !== null ? String(t.adjustment) : "corecție"}
+                      {t.adjustment !== null ? `−${Math.abs(t.adjustment)}` : "corecție"}
                     </button>
                     {t.adjustment !== null && (
                       <button

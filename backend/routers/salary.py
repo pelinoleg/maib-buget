@@ -1,26 +1,34 @@
 """Salary adjustments — hide part of income from main stats."""
 import re
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
-from typing import Optional
+from typing import Optional, List
 
 from database import get_db
 from models import Transaction, Account, IncomeAdjustment
 
 router = APIRouter(prefix="/api/salary", tags=["salary"])
 
-# Default pattern to identify salary transactions
-DEFAULT_SALARY_PATTERN = "salariu oleg"
 
-
-def _get_salary_pattern(db: Session) -> str:
-    """Return current salary pattern (could later be stored in settings)."""
-    return DEFAULT_SALARY_PATTERN
-
-
-def _is_salary(description: str, pattern: str) -> bool:
-    return pattern.lower() in description.lower()
+def _matches_any(description: str, patterns: list[dict]) -> bool:
+    """Check if description matches any pattern in the list."""
+    for p in patterns:
+        match_type = p.get("match_type", "contains")
+        text = p.get("text", "")
+        if not text:
+            continue
+        try:
+            if match_type == "regex":
+                if re.search(text, description, re.IGNORECASE):
+                    return True
+            else:
+                if text.lower() in description.lower():
+                    return True
+        except re.error:
+            pass
+    return False
 
 
 def _adjustments_map(db: Session) -> dict[int, float]:
@@ -41,10 +49,13 @@ def get_adjustments_map(db: Session) -> dict[int, float]:
 def list_salary_transactions(
     db: Session = Depends(get_db),
     year: Optional[int] = None,
-    pattern: Optional[str] = None,
+    patterns: Optional[str] = None,  # JSON array: [{"text": "...", "match_type": "contains"|"regex"}]
 ):
-    """Return all salary transactions with their adjustments."""
-    sal_pattern = pattern or _get_salary_pattern(db)
+    """Return all salary transactions matched by any of the given patterns."""
+    try:
+        parsed_patterns = json.loads(patterns) if patterns else []
+    except (json.JSONDecodeError, TypeError):
+        parsed_patterns = []
 
     q = db.query(Transaction).options(joinedload(Transaction.account)).filter(
         Transaction.type == "income",
@@ -54,8 +65,9 @@ def list_salary_transactions(
         q = q.filter(Transaction.transaction_date.startswith(str(year)))
 
     txns = q.order_by(Transaction.transaction_date.desc()).all()
-    # Filter by pattern in Python (case-insensitive)
-    txns = [t for t in txns if _is_salary(t.description, sal_pattern)]
+
+    if parsed_patterns:
+        txns = [t for t in txns if _matches_any(t.description, parsed_patterns)]
 
     adj_map = _adjustments_map(db)
 
@@ -70,20 +82,16 @@ def list_salary_transactions(
             "currency": t.account.currency if t.account else None,
             "account_name": t.account.name if t.account else None,
             "adjustment": adj,
+            # adjustment is always a deduction — stored as negative
             "adjusted_amount": round(t.amount + adj, 2) if adj is not None else None,
         })
 
-    return {"transactions": result, "pattern": sal_pattern}
-
-
-@router.get("/pattern")
-def get_pattern(db: Session = Depends(get_db)):
-    return {"pattern": _get_salary_pattern(db)}
+    return {"transactions": result}
 
 
 class AdjustmentUpsert(BaseModel):
     transaction_id: int
-    adjustment: float  # e.g. -300
+    adjustment: float  # always stored as negative (deduction)
     note: Optional[str] = None
 
 

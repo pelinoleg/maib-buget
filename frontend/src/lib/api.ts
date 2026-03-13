@@ -414,10 +414,10 @@ export function setChartEngine(engine: string) {
 }
 
 // Salary adjustments
-export function getSalaryTransactions(params: { year?: number; pattern?: string } = {}) {
+export function getSalaryTransactions(params: { year?: number; patterns?: { text: string; match_type: "contains" | "regex" }[] } = {}) {
   const qs = new URLSearchParams();
   if (params.year) qs.set("year", String(params.year));
-  if (params.pattern) qs.set("pattern", params.pattern);
+  if (params.patterns?.length) qs.set("patterns", JSON.stringify(params.patterns));
   return fetchJSON(`/salary/transactions?${qs}`);
 }
 
