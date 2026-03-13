@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter, TrendingDown, TrendingUp, Hash } from "lucide-react";
 import {
   getHiddenFilters,
   createHiddenFilter,
@@ -10,6 +10,9 @@ import {
   toggleTransactionHiddenOverride,
   getCategories,
 } from "../lib/api";
+import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CategorySelectItems } from "./categories/CategorySelect";
+import type { Category as CatType } from "./categories/types";
 
 interface HiddenFilter {
   id: number;
@@ -39,12 +42,6 @@ interface HiddenTransaction {
   note: string | null;
 }
 
-interface Category {
-  id: number;
-  name: string;
-  parent_id: number | null;
-}
-
 const MATCH_TYPE_LABELS: Record<string, string> = {
   contains: "Conține",
   regex: "Regex",
@@ -58,7 +55,7 @@ function FilterForm({
   onCancel,
 }: {
   initial?: Partial<HiddenFilter>;
-  categories: Category[];
+  categories: CatType[];
   onSave: (data: { name: string; match_type: string; pattern?: string | null; category_id?: number | null; is_active: boolean }) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -151,16 +148,17 @@ function FilterForm({
       ) : (
         <div>
           <label className="text-xs text-muted-foreground mb-1 block">Categorie</label>
-          <select
-            className="w-full h-9 px-3 rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            value={categoryId ?? ""}
-            onChange={(e) => { setCategoryId(e.target.value ? Number(e.target.value) : null); setPreview(null); }}
+          <Select
+            value={categoryId ? String(categoryId) : ""}
+            onValueChange={(v) => { setCategoryId(v ? Number(v) : null); setPreview(null); }}
           >
-            <option value="">— selectați —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>{c.parent_id ? `  ${c.name}` : c.name}</option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="— selectați —" />
+            </SelectTrigger>
+            <SelectContent>
+              <CategorySelectItems categories={categories} />
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -237,10 +235,11 @@ function formatMonth(key: string) {
 export default function BlackLedger() {
   const [filters, setFilters] = useState<HiddenFilter[]>([]);
   const [transactions, setTransactions] = useState<HiddenTransaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [categories, setCategories] = useState<CatType[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddFilter, setShowAddFilter] = useState(false);
   const [editingFilter, setEditingFilter] = useState<HiddenFilter | null>(null);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -254,16 +253,7 @@ export default function BlackLedger() {
       ]);
       setFilters(f);
       setTransactions(t.transactions);
-      // Flatten categories
-      const flat: Category[] = [];
-      const flatten = (cats: { id: number; name: string; parent_id: number | null; subcategories?: unknown[] }[], parentId: number | null = null) => {
-        for (const cat of cats) {
-          flat.push({ id: cat.id, name: cat.name, parent_id: parentId });
-          if (cat.subcategories && Array.isArray(cat.subcategories)) flatten(cat.subcategories as { id: number; name: string; parent_id: number | null; subcategories?: unknown[] }[], cat.id);
-        }
-      };
-      flatten(c);
-      setCategories(flat);
+      setCategories(c as CatType[]);
     } finally {
       setLoading(false);
     }
@@ -311,11 +301,14 @@ export default function BlackLedger() {
   const grouped = groupByMonth(transactions);
   const months = Object.keys(grouped).sort().reverse();
 
-  // Group months by year for navigation
-  const years = [...new Set(months.map((m) => m.slice(0, 4)))];
+  // Stats
+  const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+  const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const activeFilters = filters.filter((f) => f.is_active).length;
+  const overrideCount = transactions.filter((t) => t.hidden_override).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-3xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="h-8 w-8 rounded-lg bg-gray-900 dark:bg-gray-100 flex items-center justify-center">
@@ -323,92 +316,158 @@ export default function BlackLedger() {
         </div>
         <div>
           <h1 className="text-xl font-semibold">Contabilitate privată</h1>
-          <p className="text-xs text-muted-foreground">
-            {transactions.length} tranzacție/tranzacții ascunse din statistici principale
-          </p>
+          <p className="text-xs text-muted-foreground">Tranzacții excluse din statistici principale</p>
         </div>
       </div>
 
-      {/* Filters section */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Filtre active</h2>
-          <button
-            onClick={() => { setShowAddFilter(true); setEditingFilter(null); }}
-            className="flex items-center gap-1.5 h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Filtru nou
-          </button>
-        </div>
-
-        {showAddFilter && (
-          <FilterForm
-            categories={categories}
-            onSave={handleCreateFilter}
-            onCancel={() => setShowAddFilter(false)}
-          />
-        )}
-
-        {filters.length === 0 && !showAddFilter && (
-          <div className="text-sm text-muted-foreground text-center py-6 border border-dashed rounded-lg">
-            Niciun filtru. Adăugați un filtru pentru a ascunde tranzacțiile.
+      {/* Mini stats */}
+      {!loading && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Hash className="h-3 w-3" /> Tranzacții ascunse
+            </p>
+            <p className="text-2xl font-semibold">{transactions.length}</p>
+            {overrideCount > 0 && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">{overrideCount} excepție/excepții</p>
+            )}
           </div>
-        )}
+          <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <TrendingDown className="h-3 w-3 text-red-400" /> Cheltuieli ascunse
+            </p>
+            <p className="text-2xl font-semibold text-red-500">{totalExpense.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">total cumulat</p>
+          </div>
+          <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 text-emerald-400" /> Venituri ascunse
+            </p>
+            <p className="text-2xl font-semibold text-emerald-500">{totalIncome.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">total cumulat</p>
+          </div>
+          <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Filter className="h-3 w-3" /> Filtre
+            </p>
+            <p className="text-2xl font-semibold">{filters.length}</p>
+            <p className="text-xs text-muted-foreground">{activeFilters} activ/active</p>
+          </div>
+        </div>
+      )}
 
-        <div className="space-y-2">
-          {filters.map((f) => (
-            <div key={f.id}>
-              {editingFilter?.id === f.id ? (
-                <FilterForm
-                  initial={f}
-                  categories={categories}
-                  onSave={(data) => handleUpdateFilter(f.id, data)}
-                  onCancel={() => setEditingFilter(null)}
-                />
-              ) : (
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${f.is_active ? "bg-card" : "bg-muted/30 opacity-60"}`}>
-                  <div className={`h-2 w-2 rounded-full flex-shrink-0 ${f.is_active ? "bg-emerald-500" : "bg-gray-400"}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{f.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded mr-1">{MATCH_TYPE_LABELS[f.match_type]}</span>
-                      {f.match_type === "category" ? f.category_name : f.pattern}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => updateHiddenFilter(f.id, { is_active: !f.is_active }).then(load)}
-                      className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
-                      title={f.is_active ? "Dezactivare" : "Activare"}
-                    >
-                      {f.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
-                    </button>
-                    <button
-                      onClick={() => setEditingFilter(f)}
-                      className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
-                      title="Editare"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFilter(f.id)}
-                      className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                      title="Ștergere"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
+      {/* Filters section — collapsible */}
+      <div className="border rounded-xl overflow-hidden">
+        <button
+          onClick={() => { setFiltersExpanded((v) => !v); setShowAddFilter(false); }}
+          className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+        >
+          {filtersExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+          <span className="text-sm font-medium flex-1">Filtre de ascundere</span>
+          {/* Compact pills when collapsed */}
+          {!filtersExpanded && filters.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
+              {filters.slice(0, 5).map((f) => (
+                <span
+                  key={f.id}
+                  className={`text-xs px-2 py-0.5 rounded-full border font-mono ${
+                    f.is_active
+                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+                      : "bg-muted border-border text-muted-foreground opacity-50"
+                  }`}
+                >
+                  {f.name}
+                </span>
+              ))}
+              {filters.length > 5 && (
+                <span className="text-xs text-muted-foreground">+{filters.length - 5}</span>
               )}
             </div>
-          ))}
-        </div>
+          )}
+          {filters.length === 0 && !filtersExpanded && (
+            <span className="text-xs text-muted-foreground">niciun filtru</span>
+          )}
+        </button>
+
+        {filtersExpanded && (
+          <div className="p-4 space-y-3 border-t">
+            <div className="flex justify-end">
+              <button
+                onClick={() => { setShowAddFilter(true); setEditingFilter(null); }}
+                className="flex items-center gap-1.5 h-8 px-3 text-xs rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Filtru nou
+              </button>
+            </div>
+
+            {showAddFilter && (
+              <FilterForm
+                categories={categories}
+                onSave={handleCreateFilter}
+                onCancel={() => setShowAddFilter(false)}
+              />
+            )}
+
+            {filters.length === 0 && !showAddFilter && (
+              <div className="text-sm text-muted-foreground text-center py-4 border border-dashed rounded-lg">
+                Niciun filtru. Adăugați un filtru pentru a ascunde tranzacțiile.
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {filters.map((f) => (
+                <div key={f.id}>
+                  {editingFilter?.id === f.id ? (
+                    <FilterForm
+                      initial={f}
+                      categories={categories}
+                      onSave={(data) => handleUpdateFilter(f.id, data)}
+                      onCancel={() => setEditingFilter(null)}
+                    />
+                  ) : (
+                    <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border ${f.is_active ? "bg-card" : "bg-muted/30 opacity-60"}`}>
+                      <div className={`h-2 w-2 rounded-full flex-shrink-0 ${f.is_active ? "bg-emerald-500" : "bg-gray-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{f.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded mr-1">{MATCH_TYPE_LABELS[f.match_type]}</span>
+                          {f.match_type === "category" ? f.category_name : f.pattern}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={() => updateHiddenFilter(f.id, { is_active: !f.is_active }).then(load)}
+                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
+                          title={f.is_active ? "Dezactivare" : "Activare"}
+                        >
+                          {f.is_active ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />}
+                        </button>
+                        <button
+                          onClick={() => setEditingFilter(f)}
+                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFilter(f.id)}
+                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Transactions section */}
+      {/* Transactions */}
       <div className="space-y-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Tranzacții ascunse</h2>
           {transactions.length > 0 && (
             <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{transactions.length}</span>
@@ -425,36 +484,26 @@ export default function BlackLedger() {
           </div>
         )}
 
-        {/* Year tabs */}
-        {years.length > 1 && (
-          <div className="flex gap-2 flex-wrap">
-            {years.map((y) => (
-              <span key={y} className="text-xs font-medium px-2 py-1 bg-muted rounded-md text-muted-foreground">{y}</span>
-            ))}
-          </div>
-        )}
-
         {months.map((monthKey) => {
           const monthTxns = grouped[monthKey];
           const collapsed = collapsedMonths.has(monthKey);
-          const totalExpense = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
-          const totalIncome = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+          const totalExp = monthTxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+          const totalInc = monthTxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
 
           return (
             <div key={monthKey} className="border rounded-lg overflow-hidden">
-              {/* Month header */}
               <button
                 onClick={() => toggleMonth(monthKey)}
                 className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
               >
                 {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 <span className="font-medium text-sm flex-1">{formatMonth(monthKey)}</span>
-                <span className="text-xs text-muted-foreground">{monthTxns.length} tranzacții</span>
-                {totalExpense > 0 && (
-                  <span className="text-xs text-red-500 font-mono">-{totalExpense.toFixed(2)}</span>
+                <span className="text-xs text-muted-foreground mr-2">{monthTxns.length}</span>
+                {totalExp > 0 && (
+                  <span className="text-xs text-red-500 font-mono">-{totalExp.toFixed(2)}</span>
                 )}
-                {totalIncome > 0 && (
-                  <span className="text-xs text-emerald-500 font-mono ml-1">+{totalIncome.toFixed(2)}</span>
+                {totalInc > 0 && (
+                  <span className="text-xs text-emerald-500 font-mono ml-1">+{totalInc.toFixed(2)}</span>
                 )}
               </button>
 
@@ -469,7 +518,6 @@ export default function BlackLedger() {
                           : "hover:bg-muted/20"
                       }`}
                     >
-                      {/* Visibility toggle */}
                       <button
                         onClick={() => handleToggle(txn.id)}
                         disabled={togglingId === txn.id}
@@ -478,7 +526,7 @@ export default function BlackLedger() {
                             ? "bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-800/40"
                             : "hover:bg-accent text-muted-foreground"
                         }`}
-                        title={txn.hidden_override ? "Ascunde din nou (elimina excepția)" : "Arată în statistici principale (excepție)"}
+                        title={txn.hidden_override ? "Ascunde din nou" : "Arată în statistici principale"}
                       >
                         {togglingId === txn.id ? (
                           <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -489,10 +537,8 @@ export default function BlackLedger() {
                         )}
                       </button>
 
-                      {/* Date */}
                       <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{txn.transaction_date}</span>
 
-                      {/* Description */}
                       <div className="flex-1 min-w-0">
                         <p className={`truncate ${txn.hidden_override ? "text-foreground" : "text-muted-foreground"}`}>
                           {txn.description}
@@ -521,7 +567,6 @@ export default function BlackLedger() {
                         </div>
                       </div>
 
-                      {/* Amount */}
                       <div className="text-right flex-shrink-0">
                         <p className={`font-mono text-sm font-medium ${txn.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
                           {txn.type === "income" ? "+" : ""}{Math.abs(txn.amount).toFixed(2)}
@@ -534,7 +579,6 @@ export default function BlackLedger() {
                         )}
                       </div>
 
-                      {/* Override indicator */}
                       {txn.hidden_override ? (
                         <span title="Vizibil în statistici"><Check className="h-4 w-4 text-amber-500 flex-shrink-0" /></span>
                       ) : (

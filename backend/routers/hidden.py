@@ -228,15 +228,20 @@ def list_hidden_transactions(
     year: Optional[int] = None,
     month: Optional[int] = None,
 ):
-    """Return all transactions that are currently hidden (via filter or manually)."""
+    """Return all transactions caught by filters (hidden OR override-visible)."""
+    # IDs that are actually hidden (not overridden)
     hidden_ids = compute_hidden_ids(db)
-    if not hidden_ids:
+    # IDs that have override=True (visible in main stats but still shown here)
+    override_ids = {r[0] for r in db.query(Transaction.id).filter(Transaction.hidden_override == True).all()}
+    # Show both
+    all_relevant_ids = hidden_ids | override_ids
+    if not all_relevant_ids:
         return {"transactions": [], "total": 0, "sum_expense": 0, "sum_income": 0}
 
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
-    ).filter(Transaction.id.in_(hidden_ids))
+    ).filter(Transaction.id.in_(all_relevant_ids))
 
     if year:
         q = q.filter(Transaction.transaction_date.startswith(str(year)))
