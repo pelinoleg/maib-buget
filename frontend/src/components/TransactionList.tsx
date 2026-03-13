@@ -1127,6 +1127,17 @@ export default function TransactionList() {
             </TableBody>
           </Table></div>}
         </CardContent>
+        {!showAll && totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 px-4 py-3 border-t">
+            <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">{page + 1}/{totalPages}</span>
+            <Button variant="outline" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Bulk action bar */}
