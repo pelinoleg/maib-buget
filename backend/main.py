@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import engine, Base, get_db
 from models import *  # noqa: ensure models are registered
-from routers import uploads, transactions, categories, accounts, dashboard, saved_filters, type_rules, tax, ai_analysis, settings
+from routers import uploads, transactions, categories, accounts, dashboard, saved_filters, type_rules, tax, ai_analysis, settings, hidden
 from categorizer import apply_rules, categorize_with_ai
 
 Base.metadata.create_all(bind=engine)
@@ -54,6 +54,18 @@ if "accounts" in insp.get_table_names():
     if "description" not in acc_cols:
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE accounts ADD COLUMN description TEXT"))
+            conn.commit()
+
+# Migrate: add is_hidden / hidden_override to transactions
+if "transactions" in insp.get_table_names():
+    txn_cols2 = [c["name"] for c in insp.get_columns("transactions")]
+    if "is_hidden" not in txn_cols2:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN is_hidden BOOLEAN DEFAULT 0 NOT NULL"))
+            conn.commit()
+    if "hidden_override" not in txn_cols2:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN hidden_override BOOLEAN DEFAULT 0 NOT NULL"))
             conn.commit()
 
 # Seed default type rules if table is empty
@@ -127,6 +139,7 @@ app.include_router(type_rules.router)
 app.include_router(tax.router)
 app.include_router(ai_analysis.router)
 app.include_router(settings.router)
+app.include_router(hidden.router)
 
 
 @app.post("/api/categorize/apply-rules")

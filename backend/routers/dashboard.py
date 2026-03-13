@@ -9,11 +9,12 @@ from typing import Optional
 from database import get_db
 from models import Transaction, Category, Account
 from bnm import convert_amount
+from routers.hidden import compute_hidden_ids
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
 
-def _base_filter(q, date_from, date_to, account_id, bank=None):
+def _base_filter(q, date_from, date_to, account_id, bank=None, hidden_ids: set | None = None):
     """Apply common date/account/bank filters."""
     if date_from:
         q = q.filter(Transaction.transaction_date >= date_from)
@@ -25,6 +26,8 @@ def _base_filter(q, date_from, date_to, account_id, bank=None):
         q = q.filter(Transaction.account_id.in_(
             select(Account.id).where(Account.bank == bank)
         ))
+    if hidden_ids:
+        q = q.filter(Transaction.id.notin_(hidden_ids))
     return q
 
 
@@ -47,10 +50,11 @@ def get_summary(
     currency: Optional[str] = None,
 ):
     """Total income, expenses, transfers for period."""
+    hidden_ids = compute_hidden_ids(db)
     if currency:
         # Load raw transactions and convert each one
         q = db.query(Transaction).options(joinedload(Transaction.account))
-        q = _base_filter(q, date_from, date_to, account_id, bank)
+        q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
         txns = q.all()
 
         income = 0.0
@@ -83,7 +87,7 @@ def get_summary(
 
     # Native mode — use SQL aggregation
     q = db.query(Transaction)
-    q = _base_filter(q, date_from, date_to, account_id, bank)
+    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
     income = q.filter(Transaction.type == "income").with_entities(
         func.sum(Transaction.amount)
@@ -176,12 +180,14 @@ def expenses_by_category(
             cur = cat_map[cur].parent_id
         return cat_id  # fallback
 
+    hidden_ids = compute_hidden_ids(db)
+
     if currency:
         q = db.query(Transaction).options(
             joinedload(Transaction.account),
             joinedload(Transaction.category),
         ).filter(Transaction.type == "expense")
-        q = _base_filter(q, date_from, date_to, account_id, bank)
+        q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
         if parent_id is not None:
             # Filter to parent + all descendants
@@ -230,7 +236,7 @@ def expenses_by_category(
     ).join(Transaction, Transaction.category_id == Category.id).filter(
         Transaction.type == "expense",
     )
-    q = _base_filter(q, date_from, date_to, account_id, bank)
+    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
     if parent_id is not None:
         desc_ids = _collect_descendants(parent_id)
@@ -272,7 +278,7 @@ def expenses_by_category(
             Transaction.type == "expense",
             Transaction.category_id == None,
         )
-        uq = _base_filter(uq, date_from, date_to, account_id, bank)
+        uq = _base_filter(uq, date_from, date_to, account_id, bank, hidden_ids)
         uncategorized = uq.first()
 
         if uncategorized and uncategorized.total:
@@ -299,11 +305,12 @@ def income_expense_by_month(
     currency: Optional[str] = None,
 ):
     """Income vs expenses by month (for bar chart)."""
+    hidden_ids = compute_hidden_ids(db)
     if currency:
         q = db.query(Transaction).options(joinedload(Transaction.account)).filter(
             Transaction.type.in_(["income", "expense", "refund"])
         )
-        q = _base_filter(q, date_from, date_to, account_id, bank)
+        q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
         txns = q.all()
 
         months: dict[str, dict[str, float]] = defaultdict(lambda: {"income": 0.0, "expense": 0.0, "refund": 0.0})
@@ -341,7 +348,7 @@ def income_expense_by_month(
             else_=0,
         )).label("refund"),
     ).filter(Transaction.type.in_(["income", "expense", "refund"]))
-    q = _base_filter(q, date_from, date_to, account_id, bank)
+    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
     rows = q.group_by(month_expr).order_by(month_expr).all()
 
@@ -363,11 +370,12 @@ def top_expenses(
     exclude_categories: Optional[list[str]] = Query(None),
 ):
     """Top expenses by amount."""
+    hidden_ids = compute_hidden_ids(db)
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
     ).filter(Transaction.type == "expense")
-    q = _base_filter(q, date_from, date_to, account_id, bank)
+    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
     if exclude_categories:
         # Exclude transactions whose category name is in the list; keep uncategorized
@@ -444,9 +452,12 @@ def recurring_transactions(
     account_id: Optional[int] = None,
 ):
     """Detect recurring expenses (same description pattern, 3+ months)."""
+    hidden_ids = compute_hidden_ids(db)
     q = db.query(Transaction).filter(Transaction.type == "expense")
     if account_id:
         q = q.filter(Transaction.account_id == account_id)
+    if hidden_ids:
+        q = q.filter(Transaction.id.notin_(hidden_ids))
 
     txns = q.order_by(Transaction.transaction_date).all()
 
@@ -514,6 +525,8 @@ def category_trend(
     if category_id is None:
         return []
 
+    hidden_ids = compute_hidden_ids(db)
+
     # Get category + subcategory IDs
     sub_ids = [c.id for c in db.query(Category).filter(Category.parent_id == category_id).all()]
     all_ids = [category_id] + sub_ids
@@ -523,7 +536,7 @@ def category_trend(
             Transaction.type == "expense",
             Transaction.category_id.in_(all_ids),
         )
-        q = _base_filter(q, date_from, date_to, account_id, bank)
+        q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
         txns = q.all()
 
         months: dict[str, float] = defaultdict(float)
@@ -542,7 +555,7 @@ def category_trend(
         Transaction.type == "expense",
         Transaction.category_id.in_(all_ids),
     )
-    q = _base_filter(q, date_from, date_to, account_id, bank)
+    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
     rows = q.group_by(month_expr).order_by(month_expr).all()
 
     return [{"month": r.month, "total": round(r.total, 2)} for r in rows]
@@ -560,13 +573,15 @@ def compare_categories(
     currency: Optional[str] = None,
 ):
     """Compare expenses by category between two periods side-by-side."""
+    hidden_ids = compute_hidden_ids(db)
+
     def get_by_cat(df: str | None, dt: str | None) -> dict[int | None, dict]:
         if currency:
             q = db.query(Transaction).options(
                 joinedload(Transaction.account),
                 joinedload(Transaction.category),
             ).filter(Transaction.type == "expense")
-            q = _base_filter(q, df, dt, account_id, bank)
+            q = _base_filter(q, df, dt, account_id, bank, hidden_ids)
             txns = q.all()
 
             cat_totals: dict[int | None, dict] = {}
@@ -591,7 +606,7 @@ def compare_categories(
         ).join(Transaction, Transaction.category_id == Category.id).filter(
             Transaction.type == "expense",
         )
-        q = _base_filter(q, df, dt, account_id, bank)
+        q = _base_filter(q, df, dt, account_id, bank, hidden_ids)
         rows = q.group_by(Category.id).all()
 
         result: dict[int | None, dict] = {}
@@ -602,7 +617,7 @@ def compare_categories(
         uq = db.query(func.sum(func.abs(Transaction.amount)).label("total")).filter(
             Transaction.type == "expense", Transaction.category_id == None,
         )
-        uq = _base_filter(uq, df, dt, account_id, bank)
+        uq = _base_filter(uq, df, dt, account_id, bank, hidden_ids)
         uncat = uq.scalar()
         if uncat:
             result[None] = {"name": "Fără categorie", "color": "#94a3b8", "total": round(uncat, 2)}
@@ -648,11 +663,12 @@ def suspect_duplicates(
     account_id: Optional[int] = None,
 ):
     """Find transactions that look like duplicates (same date, similar amount, different descriptions)."""
+    hidden_ids = compute_hidden_ids(db)
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
     )
-    q = _base_filter(q, date_from, date_to, account_id)
+    q = _base_filter(q, date_from, date_to, account_id, hidden_ids=hidden_ids)
     # Exclude transfers — they naturally have pairs
     q = q.filter(Transaction.is_transfer == False)
     txns = q.order_by(Transaction.transaction_date, Transaction.id).all()

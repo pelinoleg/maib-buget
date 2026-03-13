@@ -73,6 +73,8 @@ class Transaction(Base):
     hash = Column(String, unique=True, index=True)
     source_file = Column(String, nullable=True)
     note = Column(Text, nullable=True)
+    is_hidden = Column(Boolean, default=False, nullable=False)  # manually hidden (overrides filter)
+    hidden_override = Column(Boolean, default=False, nullable=False)  # True = force-visible despite matching filter
 
     account = relationship("Account", back_populates="transactions")
     category = relationship("Category", back_populates="transactions")
@@ -134,3 +136,18 @@ class SavedFilter(Base):
     type = Column(String, nullable=True)
     search = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class HiddenFilter(Base):
+    """Rules that auto-hide matching transactions from main stats."""
+    __tablename__ = "hidden_filters"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    match_type = Column(String, nullable=False)  # "contains", "regex", "category"
+    pattern = Column(String, nullable=True)       # for contains/regex
+    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)  # for category type
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    category = relationship("Category")

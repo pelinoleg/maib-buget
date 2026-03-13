@@ -8,6 +8,7 @@ from typing import Optional, List
 
 from database import get_db, escape_like
 from models import Transaction, Account, Category, VALID_TRANSACTION_TYPES
+from routers.hidden import compute_hidden_ids
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -26,12 +27,19 @@ def list_transactions(
     skip: int = 0,
     limit: int = 100,
     include_transfers: bool = True,
+    include_hidden: bool = False,
 ):
     q = db.query(Transaction).options(
         joinedload(Transaction.account),
         joinedload(Transaction.category),
         joinedload(Transaction.applied_rule),
     )
+
+    # Exclude hidden transactions unless explicitly requested
+    if not include_hidden:
+        hidden_ids = compute_hidden_ids(db)
+        if hidden_ids:
+            q = q.filter(Transaction.id.notin_(hidden_ids))
 
     if account_id:
         q = q.filter(Transaction.account_id == account_id)
@@ -134,6 +142,8 @@ def list_transactions(
                 "applied_rule_pattern": t.applied_rule.pattern if t.applied_rule_id and t.applied_rule else None,
                 "applied_rule_match_type": t.applied_rule.match_type if t.applied_rule_id and t.applied_rule else None,
                 "applied_rule_category": t.applied_rule.category.name if t.applied_rule_id and t.applied_rule and t.applied_rule.category else None,
+                "is_hidden": t.is_hidden,
+                "hidden_override": t.hidden_override,
             }
             for t in transactions
         ],

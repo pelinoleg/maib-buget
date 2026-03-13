@@ -17,6 +17,7 @@ import ExchangeRates from "./components/ExchangeRates";
 import BnmOfflineBanner from "./components/BnmOfflineBanner";
 import AddTransaction from "./components/AddTransaction";
 import UploadToast from "./components/UploadToast";
+import BlackLedger from "./components/BlackLedger";
 import { FilterSidebarProvider, useFilterSidebar } from "./components/FilterSidebar";
 import { UploadProvider, useUpload } from "./lib/uploadContext";
 import { getUploadCoverage } from "./lib/api";
@@ -301,6 +302,7 @@ function MainContent() {
         <Route path="/rates" element={<ExchangeRates />} />
         <Route path="/coverage" element={<UploadCoverage />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/black" element={<BlackLedger />} />
       </Routes>
     </main>
   );
@@ -326,6 +328,19 @@ function FloatingUploadButton() {
   );
 }
 
+function HiddenEntryPoint() {
+  const location = useLocation();
+  if (location.pathname === "/black") return null;
+  return (
+    <NavLink
+      to="/black"
+      className="fixed bottom-[4.5rem] left-3 z-20 hidden md:block h-4 w-4 rounded-sm opacity-[0.07] hover:opacity-20 transition-opacity bg-foreground"
+      aria-hidden="true"
+      tabIndex={-1}
+    />
+  );
+}
+
 function AppShell() {
   const { dark, toggle } = useTheme();
   const [hasWarnings, setHasWarnings] = useState(false);
@@ -342,6 +357,7 @@ function AppShell() {
       <DesktopNav dark={dark} toggle={toggle} hasWarnings={hasWarnings} />
       <MainContent />
       <FloatingUploadButton />
+      <HiddenEntryPoint />
       <MobileBottomNav dark={dark} toggle={toggle} hasWarnings={hasWarnings} />
       <UploadToast />
     </div>

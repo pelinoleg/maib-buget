@@ -413,6 +413,50 @@ export function setChartEngine(engine: string) {
   });
 }
 
+// Hidden (Black Ledger)
+export function getHiddenFilters() {
+  return fetchJSON("/hidden/filters");
+}
+
+export function createHiddenFilter(data: { name: string; match_type: string; pattern?: string | null; category_id?: number | null; is_active?: boolean }) {
+  return fetchJSON("/hidden/filters", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateHiddenFilter(id: number, data: { name?: string; match_type?: string; pattern?: string | null; category_id?: number | null; is_active?: boolean }) {
+  return fetchJSON(`/hidden/filters/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteHiddenFilter(id: number) {
+  return fetchJSON(`/hidden/filters/${id}`, { method: "DELETE" });
+}
+
+export function previewHiddenFilter(data: { name: string; match_type: string; pattern?: string | null; category_id?: number | null }) {
+  return fetchJSON("/hidden/filters/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getHiddenTransactions(params: { year?: number; month?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.year) qs.set("year", String(params.year));
+  if (params.month) qs.set("month", String(params.month));
+  return fetchJSON(`/hidden/transactions?${qs}`);
+}
+
+export function toggleTransactionHiddenOverride(id: number) {
+  return fetchJSON(`/hidden/transactions/${id}/toggle`, { method: "PATCH" });
+}
+
 // Dev
 export function resetDatabase() {
   return fetchJSON("/reset-database", { method: "POST" });
