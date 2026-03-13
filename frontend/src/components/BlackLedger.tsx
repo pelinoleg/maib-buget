@@ -857,12 +857,12 @@ export default function BlackLedger() {
                     const allCollapsed = allMonths.every((m) => collapsedMonths.has(m));
                     setCollapsedMonths(allCollapsed ? new Set() : new Set(allMonths));
                   }}
-                  className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
+                  className="h-6 w-6 flex items-center justify-center rounded border border-border bg-muted/60 hover:bg-muted transition-colors flex-shrink-0 text-foreground"
                   title={months.every((m) => collapsedMonths.has(m)) ? "Extinde toate" : "Colapsează toate"}
                 >
                   {months.every((m) => collapsedMonths.has(m))
-                    ? <ChevronRight className="h-3 w-3" />
-                    : <ChevronDown className="h-3 w-3" />}
+                    ? <ChevronRight className="h-3.5 w-3.5" />
+                    : <ChevronDown className="h-3.5 w-3.5" />}
                 </button>
                 <span>
                   <span className="font-medium text-foreground">{transactions.length}</span> tranzacții
@@ -886,7 +886,7 @@ export default function BlackLedger() {
 
           {/* Filter by rule pills */}
             {!loading && transactions.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
+              <div className="flex items-center gap-1.5 flex-wrap mb-8">
                 <button
                   onClick={() => setSelectedFilterId(null)}
                   className={`h-7 px-3 text-xs rounded-full border transition-colors ${
