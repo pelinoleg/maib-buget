@@ -413,6 +413,26 @@ export function setChartEngine(engine: string) {
   });
 }
 
+// Salary adjustments
+export function getSalaryTransactions(params: { year?: number; pattern?: string } = {}) {
+  const qs = new URLSearchParams();
+  if (params.year) qs.set("year", String(params.year));
+  if (params.pattern) qs.set("pattern", params.pattern);
+  return fetchJSON(`/salary/transactions?${qs}`);
+}
+
+export function upsertSalaryAdjustment(data: { transaction_id: number; adjustment: number; note?: string | null }) {
+  return fetchJSON("/salary/adjustment", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteSalaryAdjustment(transactionId: number) {
+  return fetchJSON(`/salary/adjustment/${transactionId}`, { method: "DELETE" });
+}
+
 // Hidden (Black Ledger)
 export function getHiddenFilters() {
   return fetchJSON("/hidden/filters");

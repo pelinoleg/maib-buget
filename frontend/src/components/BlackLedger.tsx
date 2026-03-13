@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter, TrendingDown, TrendingUp, Hash } from "lucide-react";
+import { Plus, Trash2, Eye, EyeOff, ChevronDown, ChevronRight, AlertCircle, Check, X, Pencil, Filter, TrendingDown, TrendingUp, Hash, Banknote } from "lucide-react";
 import {
   getHiddenFilters,
   createHiddenFilter,
@@ -9,6 +9,9 @@ import {
   getHiddenTransactions,
   toggleTransactionHiddenOverride,
   getCategories,
+  getSalaryTransactions,
+  upsertSalaryAdjustment,
+  deleteSalaryAdjustment,
 } from "../lib/api";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CategorySelectItems } from "./categories/CategorySelect";
@@ -247,6 +250,183 @@ function formatMonth(key: string) {
   return `${MONTH_NAMES[parseInt(m) - 1]} ${y}`;
 }
 
+interface SalaryTxn {
+  id: number;
+  transaction_date: string;
+  description: string;
+  amount: number;
+  currency: string | null;
+  account_name: string | null;
+  adjustment: number | null;
+  adjusted_amount: number | null;
+}
+
+function SalaryBlock() {
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(currentYear);
+  const [expanded, setExpanded] = useState(false);
+  const [txns, setTxns] = useState<SalaryTxn[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getSalaryTransactions({ year });
+      setTxns(data.transactions);
+    } finally {
+      setLoading(false);
+    }
+  }, [year]);
+
+  useEffect(() => { if (expanded) load(); }, [expanded, load]);
+
+  const startEdit = (t: SalaryTxn) => {
+    setEditingId(t.id);
+    setEditValue(t.adjustment !== null ? String(t.adjustment) : "");
+  };
+
+  const saveEdit = async (txn: SalaryTxn) => {
+    const val = parseFloat(editValue.replace(",", "."));
+    setSaving(true);
+    try {
+      if (editValue.trim() === "" || isNaN(val)) {
+        if (txn.adjustment !== null) await deleteSalaryAdjustment(txn.id);
+      } else {
+        await upsertSalaryAdjustment({ transaction_id: txn.id, adjustment: val });
+      }
+      setEditingId(null);
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const totalReal = txns.reduce((s, t) => s + t.amount, 0);
+  const totalAdjusted = txns.reduce((s, t) => s + (t.adjusted_amount ?? t.amount), 0);
+  const totalDiff = totalAdjusted - totalReal;
+  const hasAdjustments = txns.some((t) => t.adjustment !== null);
+
+  return (
+    <div className="border rounded-xl overflow-hidden">
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+      >
+        {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        <Banknote className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium flex-1">Corecție salariu</span>
+        {!expanded && hasAdjustments && (
+          <span className="text-xs text-amber-600 dark:text-amber-400 font-mono">
+            {totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)}
+          </span>
+        )}
+      </button>
+
+      {expanded && (
+        <div className="border-t">
+          {/* Year selector */}
+          <div className="flex items-center gap-2 px-4 py-3 border-b">
+            <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+              <ChevronRight className="h-4 w-4 rotate-180" />
+            </button>
+            <span className="text-sm font-medium w-12 text-center">{year}</span>
+            <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            {hasAdjustments && (
+              <div className="ml-auto flex items-center gap-3 text-xs">
+                <span className="text-muted-foreground">Real: <span className="font-mono">{totalReal.toFixed(2)}</span></span>
+                <span className="text-muted-foreground">→</span>
+                <span className="font-mono font-medium">{totalAdjusted.toFixed(2)}</span>
+                <span className={`font-mono ${totalDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>
+                  ({totalDiff > 0 ? "+" : ""}{totalDiff.toFixed(2)})
+                </span>
+              </div>
+            )}
+          </div>
+
+          {loading && <div className="text-sm text-muted-foreground text-center py-6">Se încarcă...</div>}
+
+          {!loading && txns.length === 0 && (
+            <div className="text-sm text-muted-foreground text-center py-6">
+              Nicio tranzacție salarială găsită
+            </div>
+          )}
+
+          {!loading && txns.length > 0 && (
+            <div className="divide-y divide-border/50">
+              {txns.map((t) => (
+                <div key={t.id} className={`flex items-center gap-3 px-4 py-3 text-sm ${t.adjustment !== null ? "bg-amber-50/40 dark:bg-amber-950/15" : ""}`}>
+                  <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{t.transaction_date}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-muted-foreground text-xs">{t.description}</p>
+                  </div>
+
+                  {/* Real amount */}
+                  <span className="font-mono text-sm flex-shrink-0">{t.amount.toFixed(2)}</span>
+
+                  {/* Arrow + adjusted */}
+                  {t.adjustment !== null && (
+                    <>
+                      <span className="text-muted-foreground text-xs">→</span>
+                      <span className={`font-mono text-sm font-medium flex-shrink-0 ${(t.adjusted_amount ?? 0) < t.amount ? "text-amber-600 dark:text-amber-400" : "text-emerald-500"}`}>
+                        {(t.adjusted_amount ?? t.amount).toFixed(2)}
+                      </span>
+                    </>
+                  )}
+
+                  {/* Edit field */}
+                  {editingId === t.id ? (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <input
+                        autoFocus
+                        className="w-20 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                        placeholder="-300"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
+                      />
+                      <button onClick={() => saveEdit(t)} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                        <Check className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={cancelEdit} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => startEdit(t)}
+                        className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        {t.adjustment !== null ? String(t.adjustment) : "корекție"}
+                      </button>
+                      {t.adjustment !== null && (
+                        <button
+                          onClick={async () => { await deleteSalaryAdjustment(t.id); await load(); }}
+                          className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function BlackLedger() {
   const [filters, setFilters] = useState<HiddenFilter[]>([]);
   const [transactions, setTransactions] = useState<HiddenTransaction[]>([]);
@@ -349,7 +529,7 @@ export default function BlackLedger() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <Hash className="h-3 w-3" /> Tranzacții ascunse
+              <Hash className="h-3 w-3" /> Tranzacții
             </p>
             <p className="text-2xl font-semibold">{transactions.length}</p>
             {overrideCount > 0 && (
@@ -358,14 +538,14 @@ export default function BlackLedger() {
           </div>
           <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <TrendingDown className="h-3 w-3 text-red-400" /> Cheltuieli ascunse
+              <TrendingDown className="h-3 w-3 text-red-400" /> Cheltuieli
             </p>
             <p className="text-2xl font-semibold text-red-500">{totalExpense.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">total cumulat</p>
           </div>
           <div className="rounded-xl border bg-card px-4 py-3 space-y-1">
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <TrendingUp className="h-3 w-3 text-emerald-400" /> Venituri ascunse
+              <TrendingUp className="h-3 w-3 text-emerald-400" /> Venituri
             </p>
             <p className="text-2xl font-semibold text-emerald-500">{totalIncome.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">total cumulat</p>
@@ -453,6 +633,9 @@ export default function BlackLedger() {
           )}
         </div>
       )}
+
+      {/* Salary adjustments */}
+      <SalaryBlock />
 
       {/* Filters section — collapsible */}
       <div className="border rounded-xl overflow-hidden">

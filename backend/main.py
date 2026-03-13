@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from database import engine, Base, get_db
 from models import *  # noqa: ensure models are registered
-from routers import uploads, transactions, categories, accounts, dashboard, saved_filters, type_rules, tax, ai_analysis, settings, hidden
+from routers import uploads, transactions, categories, accounts, dashboard, saved_filters, type_rules, tax, ai_analysis, settings, hidden, salary
 from categorizer import apply_rules, categorize_with_ai
 
 Base.metadata.create_all(bind=engine)
@@ -67,6 +67,20 @@ if "transactions" in insp.get_table_names():
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN hidden_override BOOLEAN DEFAULT 0 NOT NULL"))
             conn.commit()
+
+# Migrate: create income_adjustments table if missing
+if "income_adjustments" not in insp.get_table_names():
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE TABLE income_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                transaction_id INTEGER NOT NULL UNIQUE REFERENCES transactions(id) ON DELETE CASCADE,
+                adjustment REAL NOT NULL,
+                note TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.commit()
 
 # Seed default type rules if table is empty
 from database import SessionLocal
@@ -140,6 +154,7 @@ app.include_router(tax.router)
 app.include_router(ai_analysis.router)
 app.include_router(settings.router)
 app.include_router(hidden.router)
+app.include_router(salary.router)
 
 
 @app.post("/api/categorize/apply-rules")

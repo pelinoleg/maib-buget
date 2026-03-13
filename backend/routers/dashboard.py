@@ -10,6 +10,7 @@ from database import get_db
 from models import Transaction, Category, Account
 from bnm import convert_amount
 from routers.hidden import compute_hidden_ids
+from routers.salary import get_adjustments_map
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -51,8 +52,9 @@ def get_summary(
 ):
     """Total income, expenses, transfers for period."""
     hidden_ids = compute_hidden_ids(db)
+    adj_map = get_adjustments_map(db)
+
     if currency:
-        # Load raw transactions and convert each one
         q = db.query(Transaction).options(joinedload(Transaction.account))
         q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
         txns = q.all()
@@ -65,7 +67,8 @@ def get_summary(
 
         for t in txns:
             cur = t.account.currency if t.account else "MDL"
-            converted = _convert(t.amount, cur, currency, t.transaction_date)
+            amt = t.amount + (adj_map.get(t.id, 0) if t.type == "income" else 0)
+            converted = _convert(amt, cur, currency, t.transaction_date)
             if t.type == "income":
                 income += converted
             elif t.type == "expense":
@@ -85,13 +88,15 @@ def get_summary(
             "currency": currency,
         }
 
-    # Native mode — use SQL aggregation
+    # Native mode — load income txns separately to apply adjustments
     q = db.query(Transaction)
     q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
 
-    income = q.filter(Transaction.type == "income").with_entities(
-        func.sum(Transaction.amount)
-    ).scalar() or 0
+    # Income: load individually to apply per-transaction adjustments
+    income_txns = q.filter(Transaction.type == "income").with_entities(
+        Transaction.id, Transaction.amount
+    ).all()
+    income = sum(row.amount + adj_map.get(row.id, 0) for row in income_txns)
 
     expense = q.filter(Transaction.type == "expense").with_entities(
         func.sum(Transaction.amount)
@@ -108,7 +113,6 @@ def get_summary(
 
     count = q.count()
 
-    # Find unique currencies in the filtered set
     currencies = [r[0] for r in db.query(Account.currency).join(Transaction).filter(
         Transaction.id.in_(q.with_entities(Transaction.id))
     ).distinct().all()]
@@ -306,6 +310,8 @@ def income_expense_by_month(
 ):
     """Income vs expenses by month (for bar chart)."""
     hidden_ids = compute_hidden_ids(db)
+    adj_map = get_adjustments_map(db)
+
     if currency:
         q = db.query(Transaction).options(joinedload(Transaction.account)).filter(
             Transaction.type.in_(["income", "expense", "refund"])
@@ -316,7 +322,8 @@ def income_expense_by_month(
         months: dict[str, dict[str, float]] = defaultdict(lambda: {"income": 0.0, "expense": 0.0, "refund": 0.0})
         for t in txns:
             cur = t.account.currency if t.account else "MDL"
-            converted = _convert(t.amount, cur, currency, t.transaction_date)
+            amt = t.amount + (adj_map.get(t.id, 0) if t.type == "income" else 0)
+            converted = _convert(amt, cur, currency, t.transaction_date)
             month = t.transaction_date[:7]
             if t.type == "income":
                 months[month]["income"] += converted
@@ -330,31 +337,27 @@ def income_expense_by_month(
             for m, d in sorted(months.items())
         ]
 
-    # Native mode
-    month_expr = func.substr(Transaction.transaction_date, 1, 7)
+    # Native mode — load all income to apply adjustments per-row
+    q_base = db.query(Transaction).filter(Transaction.type.in_(["income", "expense", "refund"]))
+    q_base = _base_filter(q_base, date_from, date_to, account_id, bank, hidden_ids)
+    all_txns = q_base.with_entities(
+        Transaction.id, Transaction.transaction_date, Transaction.type, Transaction.amount
+    ).all()
 
-    q = db.query(
-        month_expr.label("month"),
-        func.sum(case(
-            (Transaction.type == "income", Transaction.amount),
-            else_=0,
-        )).label("income"),
-        func.sum(case(
-            (Transaction.type == "expense", func.abs(Transaction.amount)),
-            else_=0,
-        )).label("expense"),
-        func.sum(case(
-            (Transaction.type == "refund", Transaction.amount),
-            else_=0,
-        )).label("refund"),
-    ).filter(Transaction.type.in_(["income", "expense", "refund"]))
-    q = _base_filter(q, date_from, date_to, account_id, bank, hidden_ids)
-
-    rows = q.group_by(month_expr).order_by(month_expr).all()
+    months_native: dict[str, dict[str, float]] = defaultdict(lambda: {"income": 0.0, "expense": 0.0, "refund": 0.0})
+    for row in all_txns:
+        month = row.transaction_date[:7]
+        amt = row.amount + (adj_map.get(row.id, 0) if row.type == "income" else 0)
+        if row.type == "income":
+            months_native[month]["income"] += amt
+        elif row.type == "refund":
+            months_native[month]["refund"] += amt
+        else:
+            months_native[month]["expense"] += abs(amt)
 
     return [
-        {"month": r.month, "income": round(r.income, 2), "expense": round(r.expense, 2), "refund": round(r.refund, 2)}
-        for r in rows
+        {"month": m, "income": round(d["income"], 2), "expense": round(d["expense"], 2), "refund": round(d["refund"], 2)}
+        for m, d in sorted(months_native.items())
     ]
 
 

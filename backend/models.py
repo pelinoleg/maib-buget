@@ -151,3 +151,16 @@ class HiddenFilter(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     category = relationship("Category")
+
+
+class IncomeAdjustment(Base):
+    """Manual adjustment to a salary transaction — reduces reported income in stats."""
+    __tablename__ = "income_adjustments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    transaction_id = Column(Integer, ForeignKey("transactions.id", ondelete="CASCADE"), unique=True, nullable=False)
+    adjustment = Column(Float, nullable=False)  # negative value, e.g. -300
+    note = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    transaction = relationship("Transaction")
