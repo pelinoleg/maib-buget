@@ -481,8 +481,9 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
 
   let y = boxY + boxH + 8;
 
-  // ── Helper: draw a donut section (title + donut + right legend) ──
-  // Returns new y after the section. Adds a separator line at the start (if addSeparator=true).
+  // ── Helper: draw a donut with callout labels around it ──
+  // Donut centered at (pieX, pieY). Labels fan out left/right with leader lines.
+  // Returns new y after the section. addSeparator draws a divider line before.
   const drawDonutSection = (
     title: string,
     items: CategorySummary[],
@@ -491,13 +492,13 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     const visible = items.filter((c) => c.total > 0);
     if (visible.length === 0) return y;
 
-    if (y > 200) { doc.addPage(); y = 20; }
+    if (y > 190) { doc.addPage(); y = 20; }
 
     if (addSeparator) {
       doc.setDrawColor(220);
       doc.setLineWidth(0.4);
       doc.line(14, y - 2, w - 14, y - 2);
-      y += 4;
+      y += 5;
     }
 
     const grandTotal = visible.reduce((s, c) => s + c.total, 0);
@@ -506,14 +507,15 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
     doc.text(ro(title), 14, y);
-    y += 5;
+    y += 6;
 
-    const pieX = 52;
-    const pieY = y + 30;
-    const outerR = 26;
-    const innerR = 11; // donut hole
+    // Donut geometry — centered on page
+    const outerR = 32;
+    const innerR = 14;
+    const pieX = w / 2;
+    const pieY = y + outerR + 14; // leave room for top labels
 
-    // Draw donut segments as trapezoid fans (outer arc - inner arc)
+    // ── Draw donut segments ──
     let startAngle = -Math.PI / 2;
     for (const cat of visible) {
       const sweep = (cat.total / grandTotal) * Math.PI * 2;
@@ -521,7 +523,6 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
       doc.setFillColor(r, g, b);
 
       const steps = Math.max(Math.ceil(sweep / 0.05), 4);
-      // Build outer arc points
       const outerPts: [number, number][] = [];
       const innerPts: [number, number][] = [];
       for (let i = 0; i <= steps; i++) {
@@ -529,7 +530,6 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
         outerPts.push([pieX + Math.cos(a) * outerR, pieY + Math.sin(a) * outerR]);
         innerPts.push([pieX + Math.cos(a) * innerR, pieY + Math.sin(a) * innerR]);
       }
-      // Draw as triangle strip between outer and inner arcs
       for (let i = 0; i < steps; i++) {
         doc.triangle(outerPts[i][0], outerPts[i][1], outerPts[i+1][0], outerPts[i+1][1], innerPts[i][0], innerPts[i][1], "F");
         doc.triangle(outerPts[i+1][0], outerPts[i+1][1], innerPts[i+1][0], innerPts[i+1][1], innerPts[i][0], innerPts[i][1], "F");
@@ -537,47 +537,119 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
       startAngle += sweep;
     }
 
-    // Legend on the right
-    const legendX = pieX + outerR + 12;
-    let legendY = y + 2;
-    for (const cat of visible) {
-      const pct = grandTotal > 0 ? (cat.total / grandTotal) * 100 : 0;
-      const [r, g, b] = hexToRgb(cat.color || "#6366f1");
-      doc.setFillColor(r, g, b);
-      doc.roundedRect(legendX, legendY - 2.5, 3, 3, 0.5, 0.5, "F");
+    // ── Build callout data ──
+    // For each segment: compute mid-angle, elbow point, text side
+    const LINE_R = outerR + 7;   // where leader line starts (just outside ring)
+    const ELBOW_R = outerR + 14; // elbow distance from center
+    const MIN_PCT = 1.5;         // skip labels below this %
+    const LINE_Y_STEP = 4.8;     // min vertical gap between labels
+    const FONT_SIZE = 6.8;
 
-      doc.setFontSize(7.5);
-      doc.setFont("helvetica", "normal");
-      doc.setTextColor(50);
-      const nameMaxW = w - legendX - 5 - 42;
-      let name = ro(cat.name);
-      while (name.length > 3 && doc.getTextWidth(name) > nameMaxW) name = name.slice(0, -1);
-      if (name !== ro(cat.name)) name += "..";
-      doc.text(name, legendX + 5, legendY);
-
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(80);
-      doc.text(`${fmt(cat.total)} ${currency}`, w - 42, legendY, { align: "right" });
-      doc.setFontSize(7);
-      doc.setTextColor(130);
-      doc.text(`${pct.toFixed(1)}%`, w - 16, legendY, { align: "right" });
-
-      legendY += 5;
+    interface Callout {
+      midAngle: number;
+      ex: number; ey: number;   // elbow
+      lx: number; ly: number;   // start (on ring edge)
+      label: string;
+      color: [number, number, number];
+      right: boolean;           // text goes to the right of elbow
     }
 
-    // Total line
-    legendY += 2;
-    doc.setDrawColor(200);
-    doc.setLineWidth(0.3);
-    doc.line(legendX, legendY - 3, w - 14, legendY - 3);
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text("Total", legendX + 5, legendY);
-    doc.text(`${fmt(grandTotal)} ${currency}`, w - 42, legendY, { align: "right" });
-    doc.text("100%", w - 16, legendY, { align: "right" });
+    startAngle = -Math.PI / 2;
+    const callouts: Callout[] = [];
+    for (const cat of visible) {
+      const sweep = (cat.total / grandTotal) * Math.PI * 2;
+      const pct = (cat.total / grandTotal) * 100;
+      const midAngle = startAngle + sweep / 2;
+      startAngle += sweep;
 
-    return Math.max(pieY + outerR + 8, legendY + 8);
+      if (pct < MIN_PCT) continue;
+
+      const lx = pieX + Math.cos(midAngle) * LINE_R;
+      const ly = pieY + Math.sin(midAngle) * LINE_R;
+      const ex = pieX + Math.cos(midAngle) * ELBOW_R;
+      const ey = pieY + Math.sin(midAngle) * ELBOW_R;
+      const right = Math.cos(midAngle) >= 0;
+
+      const label = `${ro(cat.name)}: ${fmt(cat.total)} ${currency} (${pct.toFixed(1)}%)`;
+      const [r, g, b] = hexToRgb(cat.color || "#6366f1");
+
+      callouts.push({ midAngle, ex, ey, lx, ly, label, color: [r, g, b], right });
+    }
+
+    // ── Separate left/right, sort by y, then push apart to avoid overlap ──
+    const pushApart = (list: Callout[]) => {
+      list.sort((a, b) => a.ey - b.ey);
+      for (let i = 1; i < list.length; i++) {
+        if (list[i].ey - list[i - 1].ey < LINE_Y_STEP) {
+          list[i].ey = list[i - 1].ey + LINE_Y_STEP;
+        }
+      }
+      // Also push upward pass to avoid going too low
+      for (let i = list.length - 2; i >= 0; i--) {
+        if (list[i + 1].ey - list[i].ey < LINE_Y_STEP) {
+          list[i].ey = list[i + 1].ey - LINE_Y_STEP;
+        }
+      }
+    };
+
+    const leftCallouts = callouts.filter((c) => !c.right);
+    const rightCallouts = callouts.filter((c) => c.right);
+    pushApart(leftCallouts);
+    pushApart(rightCallouts);
+
+    // ── Draw callout lines + text ──
+    const TEXT_MARGIN = 2; // gap between elbow and text
+    const LEFT_EDGE = 10;
+    const RIGHT_EDGE = w - 10;
+
+    doc.setFontSize(FONT_SIZE);
+    doc.setFont("helvetica", "normal");
+    doc.setLineWidth(0.25);
+
+    for (const c of [...leftCallouts, ...rightCallouts]) {
+      const [r, g, b] = c.color;
+      doc.setDrawColor(r, g, b);
+      doc.setTextColor(r, g, b);
+
+      // Line: ring edge → elbow
+      doc.line(c.lx, c.ly, c.ex, c.ey);
+
+      // Horizontal tick at elbow
+      const tickLen = 5;
+      const tx = c.right ? c.ex + tickLen : c.ex - tickLen;
+      doc.line(c.ex, c.ey, tx, c.ey);
+
+      // Text
+      if (c.right) {
+        // clamp to page
+        const maxW = RIGHT_EDGE - tx - TEXT_MARGIN;
+        let label = c.label;
+        while (label.length > 4 && doc.getTextWidth(label) > maxW) label = label.slice(0, -1);
+        if (label !== c.label) label = label.trimEnd() + "..";
+        doc.text(label, tx + TEXT_MARGIN, c.ey + 0.8);
+      } else {
+        const maxW = tx - LEFT_EDGE - TEXT_MARGIN;
+        let label = c.label;
+        while (label.length > 4 && doc.getTextWidth(label) > maxW) label = label.slice(0, -1);
+        if (label !== c.label) label = label.trimEnd() + "..";
+        doc.text(label, tx - TEXT_MARGIN, c.ey + 0.8, { align: "right" });
+      }
+    }
+
+    // ── Total in donut hole ──
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.text(`${fmt(grandTotal)}`, pieX, pieY - 1.5, { align: "center" });
+    doc.setFontSize(5.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(120);
+    doc.text(currency, pieX, pieY + 3, { align: "center" });
+
+    // bottom of section = bottom of donut or lowest label
+    const allC = [...leftCallouts, ...rightCallouts];
+    const maxLabelY = allC.length ? Math.max(...allC.map((c) => c.ey)) : pieY;
+    return Math.max(pieY + outerR + 8, maxLabelY + 6);
   };
 
   // ── Main donut: Cheltuieli pe categorii ──
