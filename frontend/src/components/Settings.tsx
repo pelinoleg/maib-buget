@@ -14,6 +14,7 @@ import {
 } from "@/lib/api";
 import { API_BASE } from "@/lib/api";
 import { ACCENT_COLORS, getStoredAccent, setStoredAccent } from "@/lib/accent";
+import { getSummaryPrefs, setSummaryPrefs, type SummaryBlock } from "@/lib/summaryPrefs";
 import { useChartEngine } from "@/lib/chartEngine";
 import { currencySymbol } from "@/lib/currency";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,6 +46,14 @@ export default function Settings() {
 
   // Accent color
   const [activeAccent, setActiveAccent] = useState(getStoredAccent);
+
+  // Summary blocks visibility
+  const [summaryPrefs, setSummaryPrefsState] = useState(getSummaryPrefs);
+  const toggleSummaryBlock = (block: SummaryBlock) => {
+    const next = { ...summaryPrefs, visible: { ...summaryPrefs.visible, [block]: !summaryPrefs.visible[block] } };
+    setSummaryPrefsState(next);
+    setSummaryPrefs(next);
+  };
 
   // AI Prompt
   const [systemMessage, setSystemMessage] = useState("");
@@ -169,6 +178,32 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground mt-2">
             Schimba motorul de grafice pentru toate diagramele din aplicatie.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* Summary blocks */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Blocuri rezumat vizibile</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-xs text-muted-foreground">Alege ce blocuri apar în rezumatul de pe pagina principală și în tranzacții.</p>
+          {([
+            { key: "income" as SummaryBlock, label: "Venituri", color: "text-green-600" },
+            { key: "expense" as SummaryBlock, label: "Cheltuieli", color: "text-red-500" },
+            { key: "refunds" as SummaryBlock, label: "Restituiri", color: "text-emerald-500" },
+            { key: "transfers" as SummaryBlock, label: "Transferuri", color: "text-blue-500" },
+          ]).map(({ key, label, color }) => (
+            <label key={key} className="flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={summaryPrefs.visible[key]}
+                onChange={() => toggleSummaryBlock(key)}
+                className="h-4 w-4 rounded border"
+              />
+              <span className={`text-sm font-medium ${color}`}>{label}</span>
+            </label>
+          ))}
         </CardContent>
       </Card>
 

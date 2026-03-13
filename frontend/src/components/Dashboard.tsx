@@ -12,8 +12,6 @@ import {
   BarChart3,
   ArrowLeft,
   ChevronRight,
-  Eye,
-  EyeOff,
   SlidersHorizontal,
   ChevronDown,
 } from "lucide-react";
@@ -50,6 +48,7 @@ import { exportDashboardPDF, type CategoryPieChart } from "@/lib/pdf";
 import { getPdfChartCategories } from "@/components/Settings";
 import { currencySymbol } from "@/lib/currency";
 import { useChartEngine } from "@/lib/chartEngine";
+import { getSummaryPrefs } from "@/lib/summaryPrefs";
 import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 
 interface Summary {
@@ -241,9 +240,9 @@ export default function Dashboard() {
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
-  const [summaryVisible, setSummaryVisible] = useState<boolean>(() => {
-    try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
-  });
+  const [summaryPrefs, setSummaryPrefsState] = useState(getSummaryPrefs);
+  // Re-read prefs when tab becomes active (user may have changed in Settings)
+  useEffect(() => { setSummaryPrefsState(getSummaryPrefs()); }, []);
 
   // Top expenses — exclude categories by id (persisted)
   const [excludedCategoryIds, setExcludedCategoryIds] = useState<number[]>(() => {
@@ -659,100 +658,43 @@ export default function Dashboard() {
       )}
 
       {/* Summary cards */}
-      {!loading && summary && (
-        <div>
-          <button
-            onClick={() => {
-              const next = !summaryVisible;
-              setSummaryVisible(next);
-              try { localStorage.setItem("summaryCardsVisible", String(next)); } catch {}
-            }}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 ml-auto"
-          >
-            {summaryVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-            {summaryVisible ? "Ascunde rezumat" : "Arată rezumat"}
-          </button>
-        {summaryVisible && <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {(() => {
-            const incDelta = prevSummary ? deltaPercent(summary.total_income, prevSummary.total_income) : null;
-            const expDelta = prevSummary ? deltaPercent(summary.total_expense, prevSummary.total_expense) : null;
-            const refDelta = prevSummary ? deltaPercent(summary.total_refunds, prevSummary.total_refunds) : null;
-
-            const DeltaBadge = ({ delta, invertColor = false }: { delta: number | null; invertColor?: boolean }) => {
-              if (delta === null) return null;
-              const isUp = delta > 0;
-              // For expenses: up = bad (red), down = good (green) — hence invertColor
-              const isGood = invertColor ? !isUp : isUp;
-              return (
-                <span className={`text-xs font-medium ${isGood ? "text-green-600" : "text-red-500"}`}>
-                  {isUp ? "↑" : "↓"} {Math.abs(delta).toFixed(0)}%
-                </span>
-              );
-            };
-
-            return (
-              <>
-                <Card className={`py-0 ${summary.total_income === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-                  <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-                    <div className="flex items-start gap-1.5 sm:gap-2.5">
-                      <div className="p-1 sm:p-1.5 bg-green-100 rounded-md">
-                        <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Venituri</p>
-                        <p className="text-sm sm:text-lg font-bold text-green-600 truncate">+{fmt(summary.total_income)}{currLabel}</p>
-                        <DeltaBadge delta={incDelta} />
-                      </div>
+      {!loading && summary && (() => {
+        const incDelta = prevSummary ? deltaPercent(summary.total_income, prevSummary.total_income) : null;
+        const expDelta = prevSummary ? deltaPercent(summary.total_expense, prevSummary.total_expense) : null;
+        const refDelta = prevSummary ? deltaPercent(summary.total_refunds, prevSummary.total_refunds) : null;
+        const DeltaBadge = ({ delta, invertColor = false }: { delta: number | null; invertColor?: boolean }) => {
+          if (delta === null) return null;
+          const isUp = delta > 0;
+          const isGood = invertColor ? !isUp : isUp;
+          return <span className={`text-[10px] font-medium ${isGood ? "text-green-600" : "text-red-500"}`}>{isUp ? "↑" : "↓"} {Math.abs(delta).toFixed(0)}%</span>;
+        };
+        const blocks = [
+          { key: "income", show: summaryPrefs.visible.income, value: `+${fmt(summary.total_income)}${currLabel}`, label: "Venituri", cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100", delta: <DeltaBadge delta={incDelta} /> },
+          { key: "expense", show: summaryPrefs.visible.expense, value: `-${fmt(summary.total_expense)}${currLabel}`, label: "Cheltuieli", cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100", delta: <DeltaBadge delta={expDelta} invertColor /> },
+          { key: "refunds", show: summaryPrefs.visible.refunds, value: `+${fmt(summary.total_refunds)}${currLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100", delta: <DeltaBadge delta={refDelta} /> },
+          { key: "transfers", show: summaryPrefs.visible.transfers, value: fmt(summary.total_transfers) + currLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100", delta: null },
+        ].filter((b) => b.show);
+        if (blocks.length === 0) return null;
+        const cols = blocks.length <= 2 ? `grid-cols-${blocks.length}` : blocks.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
+        return (
+          <div className={`grid gap-2 ${cols}`}>
+            {blocks.map((b) => (
+              <Card key={b.key} className="py-0">
+                <CardContent className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>
+                      <p className={`text-sm font-bold truncate leading-none ${b.cls}`}>{b.value}</p>
+                      {b.delta && <div className="mt-0.5">{b.delta}</div>}
                     </div>
-                  </CardContent>
-                </Card>
-                <Card className={`py-0 ${summary.total_expense === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-                  <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-                    <div className="flex items-start gap-1.5 sm:gap-2.5">
-                      <div className="p-1 sm:p-1.5 bg-red-100 rounded-md">
-                        <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-[10px] sm:text-xs text-muted-foreground">Cheltuieli</p>
-                        <p className="text-sm sm:text-lg font-bold text-red-500 truncate">-{fmt(summary.total_expense)}{currLabel}</p>
-                        <DeltaBadge delta={expDelta} invertColor />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className={`py-0 hidden sm:block ${summary.total_refunds === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-start gap-2.5">
-                      <div className="p-1.5 bg-emerald-100 rounded-md">
-                        <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Restituiri</p>
-                        <p className="text-lg font-bold text-emerald-500 truncate">+{fmt(summary.total_refunds)}{currLabel}</p>
-                        <DeltaBadge delta={refDelta} />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card className={`py-0 hidden sm:block ${summary.total_transfers === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-                  <CardContent className="px-4 py-3">
-                    <div className="flex items-start gap-2.5">
-                      <div className="p-1.5 bg-blue-100 rounded-md">
-                        <ArrowLeftRight className="h-4 w-4 text-blue-500" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-xs text-muted-foreground">Transferuri</p>
-                        <p className="text-lg font-bold text-blue-500 truncate">{fmt(summary.total_transfers)}{currLabel}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            );
-          })()}
-        </div>}
-        </div>
-      )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Expenses by category — donut + legend, full width */}
       {!loading && byCategory.length > 0 && (() => {

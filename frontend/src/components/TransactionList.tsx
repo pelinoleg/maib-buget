@@ -25,8 +25,6 @@ import {
   ChevronDown,
   Zap,
   SearchCheck,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -77,6 +75,7 @@ import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_
 import { getSavedFilters, createSavedFilter, deleteSavedFilter } from "@/lib/api";
 import { downloadCSV } from "@/lib/csv";
 import { exportTransactionsPDF } from "@/lib/pdf";
+import { getSummaryPrefs } from "@/lib/summaryPrefs";
 
 interface Transaction {
   id: number;
@@ -150,9 +149,8 @@ export default function TransactionList() {
   const [sumExpense, setSumExpense] = useState(0);
   const [sumTransfers, setSumTransfers] = useState(0);
   const [sumRefunds, setSumRefunds] = useState(0);
-  const [summaryVisible, setSummaryVisible] = useState<boolean>(() => {
-    try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
-  });
+  const [summaryPrefs, setSummaryPrefsState] = useState(getSummaryPrefs);
+  useEffect(() => { setSummaryPrefsState(getSummaryPrefs()); }, []);
   const [page, setPage] = useState(0);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const noteRef = useRef<HTMLInputElement>(null);
@@ -695,74 +693,35 @@ export default function TransactionList() {
         </div>
       </div>
 
-      {/* Summary — compact row on mobile, cards on desktop */}
-      <div>
-        <button
-          onClick={() => {
-            const next = !summaryVisible;
-            setSummaryVisible(next);
-            try { localStorage.setItem("summaryCardsVisible", String(next)); } catch {}
-          }}
-          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 ml-auto"
-        >
-          {summaryVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          {summaryVisible ? "Ascunde rezumat" : "Arată rezumat"}
-        </button>
-        {summaryVisible && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-        <Card className={`py-0 ${sumIncome === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-          <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-            <div className="flex items-start gap-1.5 sm:gap-2.5">
-              <div className="p-1 sm:p-1.5 bg-green-100 rounded-md">
-                <TrendingUp className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-green-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Venituri</p>
-                <p className="text-sm sm:text-lg font-bold text-green-600 truncate">+{sumIncome.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`py-0 ${sumExpense === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-          <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
-            <div className="flex items-start gap-1.5 sm:gap-2.5">
-              <div className="p-1 sm:p-1.5 bg-red-100 rounded-md">
-                <TrendingDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] sm:text-xs text-muted-foreground">Cheltuieli</p>
-                <p className="text-sm sm:text-lg font-bold text-red-500 truncate">-{sumExpense.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`py-0 hidden sm:block ${sumRefunds === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-          <CardContent className="px-4 py-3">
-            <div className="flex items-start gap-2.5">
-              <div className="p-1.5 bg-emerald-100 rounded-md">
-                <ArrowUpCircle className="h-4 w-4 text-emerald-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Restituiri</p>
-                <p className="text-lg font-bold text-emerald-500 truncate">+{sumRefunds.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`py-0 hidden sm:block ${sumTransfers === 0 ? "opacity-50 pointer-events-none" : ""}`}>
-          <CardContent className="px-4 py-3">
-            <div className="flex items-start gap-2.5">
-              <div className="p-1.5 bg-blue-100 rounded-md">
-                <ArrowLeftRight className="h-4 w-4 text-blue-500" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Transferuri</p>
-                <p className="text-lg font-bold text-blue-500 truncate">{sumTransfers.toLocaleString("ro-RO", { minimumFractionDigits: 2 })}{summCurrLabel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        </div>}
-      </div>
+      {/* Summary cards */}
+      {(() => {
+        const fmtN = (n: number) => n.toLocaleString("ro-RO", { minimumFractionDigits: 2 });
+        const blocks = [
+          { key: "income", show: summaryPrefs.visible.income, value: `+${fmtN(sumIncome)}${summCurrLabel}`, label: "Venituri", cls: "text-green-600", icon: <TrendingUp className="h-3.5 w-3.5 text-green-600" />, bg: "bg-green-100" },
+          { key: "expense", show: summaryPrefs.visible.expense, value: `-${fmtN(sumExpense)}${summCurrLabel}`, label: "Cheltuieli", cls: "text-red-500", icon: <TrendingDown className="h-3.5 w-3.5 text-red-500" />, bg: "bg-red-100" },
+          { key: "refunds", show: summaryPrefs.visible.refunds, value: `+${fmtN(sumRefunds)}${summCurrLabel}`, label: "Restituiri", cls: "text-emerald-500", icon: <ArrowUpCircle className="h-3.5 w-3.5 text-emerald-500" />, bg: "bg-emerald-100" },
+          { key: "transfers", show: summaryPrefs.visible.transfers, value: fmtN(sumTransfers) + summCurrLabel, label: "Transferuri", cls: "text-blue-500", icon: <ArrowLeftRight className="h-3.5 w-3.5 text-blue-500" />, bg: "bg-blue-100" },
+        ].filter((b) => b.show);
+        if (blocks.length === 0) return null;
+        const cols = blocks.length <= 2 ? `grid-cols-${blocks.length}` : blocks.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
+        return (
+          <div className={`grid gap-2 ${cols}`}>
+            {blocks.map((b) => (
+              <Card key={b.key} className="py-0">
+                <CardContent className="px-3 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>
+                      <p className={`text-sm font-bold truncate leading-none ${b.cls}`}>{b.value}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        );
+      })()}
 
       <Card className="gap-2">
         <CardHeader className="pb-0">
