@@ -46,7 +46,7 @@ import type { Category as CatType } from "./categories/types";
 import PeriodPresetBar, { type FilterState } from "@/components/PeriodPresetBar";
 import { type PeriodPresetKey, computeDatesForPreset, formatPresetLabel, PERIOD_PRESETS, PRESET_GROUPS } from "@/lib/periodPresets";
 import { subDays, parseISO, format, differenceInCalendarDays } from "date-fns";
-import { exportDashboardPDF, type CategoryMonthChart } from "@/lib/pdf";
+import { exportDashboardPDF, type CategoryPieChart } from "@/lib/pdf";
 import { getPdfChartCategories } from "@/components/Settings";
 import { currencySymbol } from "@/lib/currency";
 import { useChartEngine } from "@/lib/chartEngine";
@@ -603,19 +603,24 @@ export default function Dashboard() {
               className="hidden md:inline-flex"
               onClick={async () => {
                 const pdfCats = getPdfChartCategories();
-                let categoryCharts: CategoryMonthChart[] = [];
+                let categoryCharts: CategoryPieChart[] = [];
                 if (pdfCats.length > 0) {
                   const results = await Promise.all(
                     pdfCats.map((c) =>
-                      getCategoryTrend({ category_id: c.id, ...(dateFrom ? { date_from: dateFrom } : {}), ...(dateTo ? { date_to: dateTo } : {}), currency: BASE_CURRENCY })
-                        .then((data: {month: string; total: number}[]) => ({
+                      getExpensesByCategory({
+                        parent_id: c.id,
+                        ...(dateFrom ? { date_from: dateFrom } : {}),
+                        ...(dateTo ? { date_to: dateTo } : {}),
+                        currency: BASE_CURRENCY,
+                      })
+                        .then((data: { name: string; color: string; total: number }[]) => ({
                           name: c.name, color: c.color,
-                          months: data.map((d) => ({ month: d.month, amount: d.total })),
+                          subcategories: data.map((d) => ({ name: d.name, color: d.color, total: d.total })),
                         }))
                         .catch(() => null)
                     )
                   );
-                  categoryCharts = results.filter(Boolean) as CategoryMonthChart[];
+                  categoryCharts = results.filter(Boolean) as CategoryPieChart[];
                 }
                 exportDashboardPDF({
                   dateFrom, dateTo, currency: BASE_CURRENCY,

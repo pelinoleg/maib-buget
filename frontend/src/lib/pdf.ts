@@ -408,10 +408,10 @@ interface ComparisonItem {
   delta_pct: number | null;
 }
 
-export interface CategoryMonthChart {
+export interface CategoryPieChart {
   name: string;
   color: string;
-  months: { month: string; amount: number }[];
+  subcategories: CategorySummary[];
 }
 
 export interface DashboardPDFParams {
@@ -424,13 +424,13 @@ export interface DashboardPDFParams {
   months: MonthSummary[];
   topExpenses: TopExpenseItem[];
   comparison?: ComparisonItem[];
-  categoryCharts?: CategoryMonthChart[];
+  categoryCharts?: CategoryPieChart[];
 }
 
 export function exportDashboardPDF(params: DashboardPDFParams) {
   const {
     dateFrom, dateTo, currency, totalIncome, totalExpense,
-    categories, months, topExpenses, comparison, categoryCharts,
+    categories, months, topExpenses, comparison, categoryCharts = [],
   } = params;
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -656,58 +656,87 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     y = (doc as any).lastAutoTable.finalY + 8;
   }
 
-  // ── Per-category monthly bar charts ──
+  // ── Per-category pie charts ──
   if (categoryCharts && categoryCharts.length > 0) {
-    if (y > 200) { doc.addPage(); y = 20; }
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(30, 41, 59);
-    doc.text(ro("Evolutie pe categorii"), 14, y);
-    y += 6;
-
     for (const cat of categoryCharts) {
-      if (y > 240) { doc.addPage(); y = 20; }
-      const [cr, cg, cb] = hexToRgb(cat.color || "#6366f1");
-      const maxVal = Math.max(...cat.months.map((m) => m.amount), 1);
-      const chartLeft = 40;
-      const chartRight = w - 16;
-      const chartW = chartRight - chartLeft;
-      const barH = 4;
-      const rowGap = 2;
+      const items = (cat.subcategories || []).filter((s) => s.total > 0);
+      if (items.length === 0) continue;
 
-      // Category label
-      doc.setFontSize(8);
+      if (y > 200) { doc.addPage(); y = 20; }
+
+      const grandTotal = items.reduce((s, c) => s + c.total, 0);
+
+      doc.setFontSize(10);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(cr, cg, cb);
-      doc.setFillColor(cr, cg, cb);
-      doc.roundedRect(14, y - 2.5, 3, 3, 0.5, 0.5, "F");
-      doc.text(ro(cat.name), 19, y);
+      doc.setTextColor(30, 41, 59);
+      doc.text(ro(cat.name), 14, y);
       y += 4;
 
-      for (const m of cat.months) {
-        doc.setFontSize(6);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100);
-        doc.text(m.month, chartLeft - 2, y + barH / 2 + 1, { align: "right" });
+      // Draw pie segments
+      const pieX = 50;
+      const pieY = y + 34;
+      const pieR = 28;
+      let startAngle = -Math.PI / 2;
 
-        const barW = Math.max((m.amount / maxVal) * chartW, m.amount > 0 ? 0.5 : 0);
-        if (barW > 0) {
-          doc.setFillColor(cr, cg, cb);
-          doc.roundedRect(chartLeft, y, barW, barH, 0.5, 0.5, "F");
+      for (const item of items) {
+        const sweep = (item.total / grandTotal) * Math.PI * 2;
+        const [r, g, b] = hexToRgb(item.color || "#6366f1");
+        doc.setFillColor(r, g, b);
+
+        const steps = Math.max(Math.ceil(sweep / 0.05), 4);
+        const points: [number, number][] = [[pieX, pieY]];
+        for (let i = 0; i <= steps; i++) {
+          const a = startAngle + (sweep * i) / steps;
+          points.push([pieX + Math.cos(a) * pieR, pieY + Math.sin(a) * pieR]);
         }
-        if (m.amount > 0) {
-          const label = fmt(m.amount);
-          doc.setFontSize(5.5);
-          doc.setTextColor(cr, cg, cb);
-          if (barW > doc.getTextWidth(label) + 3) {
-            doc.text(label, chartLeft + barW - 1, y + barH - 0.8, { align: "right" });
-          } else {
-            doc.text(label, chartLeft + barW + 1, y + barH - 0.8);
-          }
+        for (let i = 1; i < points.length - 1; i++) {
+          doc.triangle(
+            points[0][0], points[0][1],
+            points[i][0], points[i][1],
+            points[i + 1][0], points[i + 1][1],
+            "F"
+          );
         }
-        y += barH + rowGap;
+        startAngle += sweep;
       }
-      y += 5;
+
+      // Legend on the right
+      const legendX = pieX + pieR + 14;
+      let legendY = y + 4;
+      for (const item of items) {
+        const pct = grandTotal > 0 ? (item.total / grandTotal) * 100 : 0;
+        const [r, g, b] = hexToRgb(item.color || "#6366f1");
+        doc.setFillColor(r, g, b);
+        doc.roundedRect(legendX, legendY - 2.5, 3, 3, 0.5, 0.5, "F");
+
+        doc.setFontSize(7.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(50);
+        doc.text(ro(item.name), legendX + 5, legendY);
+
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(80);
+        doc.text(`${fmt(item.total)} ${currency}`, w - 42, legendY, { align: "right" });
+        doc.setFontSize(7);
+        doc.setTextColor(130);
+        doc.text(`${pct.toFixed(1)}%`, w - 16, legendY, { align: "right" });
+
+        legendY += 5;
+      }
+
+      // Total line
+      legendY += 2;
+      doc.setDrawColor(200);
+      doc.setLineWidth(0.3);
+      doc.line(legendX, legendY - 3, w - 14, legendY - 3);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("Total", legendX + 5, legendY);
+      doc.text(`${fmt(grandTotal)} ${currency}`, w - 42, legendY, { align: "right" });
+      doc.text("100%", w - 16, legendY, { align: "right" });
+
+      y = Math.max(pieY + pieR + 8, legendY + 8);
     }
   }
 
