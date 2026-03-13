@@ -334,7 +334,7 @@ function HiddenEntryPoint() {
   return (
     <NavLink
       to="/black"
-      className="fixed bottom-[4.5rem] left-3 z-20 hidden md:block h-4 w-4 rounded-sm opacity-[0.07] hover:opacity-20 transition-opacity bg-foreground"
+      className="fixed bottom-3 left-3 z-20 hidden md:block h-4 w-4 rounded-sm opacity-[0.07] hover:opacity-20 transition-opacity bg-foreground"
       aria-hidden="true"
       tabIndex={-1}
     />

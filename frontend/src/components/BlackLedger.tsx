@@ -42,10 +42,25 @@ interface HiddenTransaction {
   note: string | null;
 }
 
-const MATCH_TYPE_LABELS: Record<string, string> = {
-  contains: "Conține",
-  regex: "Regex",
-  category: "Categorie",
+const MATCH_TYPE_META: Record<string, { label: string; badge: string; pill: string; activePill: string }> = {
+  contains: {
+    label: "Conține",
+    badge: "bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
+    pill:  "bg-blue-500/10 border-blue-400/40 text-blue-700 dark:text-blue-300 hover:bg-blue-500/20",
+    activePill: "bg-blue-600 text-white border-blue-600",
+  },
+  regex: {
+    label: "/regex/",
+    badge: "bg-violet-100 dark:bg-violet-950/50 text-violet-700 dark:text-violet-300 border border-violet-200 dark:border-violet-800",
+    pill:  "bg-violet-500/10 border-violet-400/40 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20",
+    activePill: "bg-violet-600 text-white border-violet-600",
+  },
+  category: {
+    label: "Categorie",
+    badge: "bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-800",
+    pill:  "bg-orange-500/10 border-orange-400/40 text-orange-700 dark:text-orange-300 hover:bg-orange-500/20",
+    activePill: "bg-orange-500 text-white border-orange-500",
+  },
 };
 
 function FilterForm({
@@ -240,6 +255,8 @@ export default function BlackLedger() {
   const [showAddFilter, setShowAddFilter] = useState(false);
   const [editingFilter, setEditingFilter] = useState<HiddenFilter | null>(null);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
+  const [statsExpanded, setStatsExpanded] = useState(false);
+  const [selectedFilterId, setSelectedFilterId] = useState<number | "override" | null>(null);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
@@ -298,10 +315,17 @@ export default function BlackLedger() {
     });
   };
 
-  const grouped = groupByMonth(transactions);
+  // Filter transactions by selected rule
+  const visibleTransactions = selectedFilterId === null
+    ? transactions
+    : selectedFilterId === "override"
+      ? transactions.filter((t) => t.hidden_override)
+      : transactions.filter((t) => t.matched_filter?.id === selectedFilterId);
+
+  const grouped = groupByMonth(visibleTransactions);
   const months = Object.keys(grouped).sort().reverse();
 
-  // Stats
+  // Stats (always from all transactions)
   const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
   const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const activeFilters = filters.filter((f) => f.is_active).length;
@@ -356,6 +380,80 @@ export default function BlackLedger() {
         </div>
       )}
 
+      {/* Per-filter stats — collapsible */}
+      {!loading && filters.length > 0 && (
+        <div className="border rounded-xl overflow-hidden">
+          <button
+            onClick={() => setStatsExpanded((v) => !v)}
+            className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+          >
+            {statsExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+            <span className="text-sm font-medium flex-1">Statistici pe filtre</span>
+            {!statsExpanded && (
+              <span className="text-xs text-muted-foreground">
+                {filters.filter((f) => transactions.filter((t) => t.matched_filter?.id === f.id).length > 0).length} filtre cu date
+              </span>
+            )}
+          </button>
+
+          {statsExpanded && (
+            <div className="divide-y divide-border/50">
+              {filters.map((f) => {
+                const ftxns = transactions.filter((t) => t.matched_filter?.id === f.id);
+                if (ftxns.length === 0) return null;
+                const meta = MATCH_TYPE_META[f.match_type];
+                const exp = ftxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
+                const inc = ftxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+                const months = new Set(ftxns.map((t) => t.transaction_date.slice(0, 7))).size;
+                const overrides = ftxns.filter((t) => t.hidden_override).length;
+                // top 3 by amount
+                const top3 = [...ftxns]
+                  .filter((t) => t.type === "expense")
+                  .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount))
+                  .slice(0, 3);
+
+                return (
+                  <div key={f.id} className="px-4 py-3 space-y-2">
+                    {/* Filter name + type badge */}
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-sm ${meta.badge}`}>
+                        {meta.label}
+                      </span>
+                      <span className="text-sm font-medium">{f.name}</span>
+                      {!f.is_active && <span className="text-xs text-muted-foreground">(inactiv)</span>}
+                    </div>
+
+                    {/* Summary row */}
+                    <div className="flex items-center gap-4 text-xs">
+                      <span className="text-muted-foreground">{ftxns.length} tranzacții</span>
+                      <span className="text-muted-foreground">{months} luni</span>
+                      {exp > 0 && <span className="text-red-500 font-mono font-medium">−{exp.toFixed(2)}</span>}
+                      {inc > 0 && <span className="text-emerald-500 font-mono font-medium">+{inc.toFixed(2)}</span>}
+                      {overrides > 0 && (
+                        <span className="text-amber-600 dark:text-amber-400">{overrides} excepție</span>
+                      )}
+                    </div>
+
+                    {/* Top expenses */}
+                    {top3.length > 0 && (
+                      <div className="space-y-0.5 pl-1">
+                        {top3.map((t) => (
+                          <div key={t.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <span className="w-20 flex-shrink-0">{t.transaction_date}</span>
+                            <span className="flex-1 truncate">{t.description}</span>
+                            <span className="font-mono text-red-400 flex-shrink-0">{Math.abs(t.amount).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Filters section — collapsible */}
       <div className="border rounded-xl overflow-hidden">
         <button
@@ -363,22 +461,24 @@ export default function BlackLedger() {
           className="w-full flex items-center gap-3 px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
         >
           {filtersExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-          <span className="text-sm font-medium flex-1">Filtre de ascundere</span>
+          <span className="text-sm font-medium flex-1">Filtre</span>
           {/* Compact pills when collapsed */}
           {!filtersExpanded && filters.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap justify-end max-w-[60%]">
-              {filters.slice(0, 5).map((f) => (
-                <span
-                  key={f.id}
-                  className={`text-xs px-2 py-0.5 rounded-full border font-mono ${
-                    f.is_active
-                      ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
-                      : "bg-muted border-border text-muted-foreground opacity-50"
-                  }`}
-                >
-                  {f.name}
-                </span>
-              ))}
+            <div className="flex items-center gap-1.5 flex-wrap justify-end max-w-[80%]">
+              {filters.slice(0, 5).map((f) => {
+                const meta = MATCH_TYPE_META[f.match_type];
+                return (
+                  <span
+                    key={f.id}
+                    className={`text-xs px-2 py-0.5 rounded-full border flex items-center gap-1 ${
+                      f.is_active ? meta.pill : "bg-muted border-border text-muted-foreground opacity-40"
+                    }`}
+                  >
+                    <span className="opacity-60 font-mono">{meta.label}</span>
+                    <span className="font-medium">{f.name}</span>
+                  </span>
+                );
+              })}
               {filters.length > 5 && (
                 <span className="text-xs text-muted-foreground">+{filters.length - 5}</span>
               )}
@@ -427,11 +527,14 @@ export default function BlackLedger() {
                     />
                   ) : (
                     <div className={`flex items-center gap-3 px-4 py-2.5 rounded-lg border ${f.is_active ? "bg-card" : "bg-muted/30 opacity-60"}`}>
-                      <div className={`h-2 w-2 rounded-full flex-shrink-0 ${f.is_active ? "bg-emerald-500" : "bg-gray-400"}`} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{f.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-mono text-xs bg-muted px-1 py-0.5 rounded mr-1">{MATCH_TYPE_LABELS[f.match_type]}</span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-sm ${MATCH_TYPE_META[f.match_type].badge}`}>
+                            {MATCH_TYPE_META[f.match_type].label}
+                          </span>
+                          <p className="text-sm font-medium truncate">{f.name}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 font-mono truncate pl-0.5">
                           {f.match_type === "category" ? f.category_name : f.pattern}
                         </p>
                       </div>
@@ -467,12 +570,61 @@ export default function BlackLedger() {
 
       {/* Transactions */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Tranzacții ascunse</h2>
           {transactions.length > 0 && (
             <span className="text-xs bg-muted px-2 py-0.5 rounded-full">{transactions.length}</span>
           )}
         </div>
+
+        {/* Filter by rule pills */}
+        {!loading && transactions.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedFilterId(null)}
+              className={`h-7 px-3 text-xs rounded-full border transition-colors ${
+                selectedFilterId === null
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "hover:bg-accent border-border"
+              }`}
+            >
+              Toate
+            </button>
+            {filters.map((f) => {
+              const count = transactions.filter((t) => t.matched_filter?.id === f.id).length;
+              if (count === 0) return null;
+              const active = selectedFilterId === f.id;
+              const meta = MATCH_TYPE_META[f.match_type];
+              return (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFilterId(active ? null : f.id)}
+                  className={`h-7 px-2.5 text-xs rounded-full border transition-colors flex items-center gap-1.5 ${
+                    active ? meta.activePill : meta.pill
+                  }`}
+                >
+                  <span className="font-mono opacity-70">{meta.label}</span>
+                  <span className="font-medium">{f.name}</span>
+                  <span className="opacity-60">{count}</span>
+                </button>
+              );
+            })}
+            {overrideCount > 0 && (
+              <button
+                onClick={() => setSelectedFilterId(selectedFilterId === "override" ? null : "override")}
+                className={`h-7 px-3 text-xs rounded-full border transition-colors flex items-center gap-1.5 ${
+                  selectedFilterId === "override"
+                    ? "bg-amber-500 text-white border-amber-500"
+                    : "hover:bg-accent border-border text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                <Eye className="h-3 w-3" />
+                Excepții
+                <span className="opacity-60">{overrideCount}</span>
+              </button>
+            )}
+          </div>
+        )}
 
         {loading && (
           <div className="text-sm text-muted-foreground text-center py-8">Se încarcă...</div>
