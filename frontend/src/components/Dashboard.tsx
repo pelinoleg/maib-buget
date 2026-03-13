@@ -12,6 +12,8 @@ import {
   BarChart3,
   ArrowLeft,
   ChevronRight,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -170,6 +172,9 @@ export default function Dashboard() {
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
+  const [summaryVisible, setSummaryVisible] = useState<boolean>(() => {
+    try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
+  });
 
   // Top expenses — exclude categories (persisted)
   const [excludedCategories, setExcludedCategories] = useState<Set<string>>(() => {
@@ -561,7 +566,19 @@ export default function Dashboard() {
 
       {/* Summary cards */}
       {!loading && summary && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <button
+            onClick={() => {
+              const next = !summaryVisible;
+              setSummaryVisible(next);
+              try { localStorage.setItem("summaryCardsVisible", String(next)); } catch {}
+            }}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 ml-auto"
+          >
+            {summaryVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+            {summaryVisible ? "Ascunde rezumat" : "Arată rezumat"}
+          </button>
+        {summaryVisible && <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {(() => {
             const incDelta = prevSummary ? deltaPercent(summary.total_income, prevSummary.total_income) : null;
             const expDelta = prevSummary ? deltaPercent(summary.total_expense, prevSummary.total_expense) : null;
@@ -639,6 +656,7 @@ export default function Dashboard() {
               </>
             );
           })()}
+        </div>}
         </div>
       )}
 

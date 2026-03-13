@@ -25,6 +25,8 @@ import {
   ChevronDown,
   Zap,
   SearchCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,6 +104,7 @@ interface Transaction {
   applied_rule_pattern: string | null;
   applied_rule_match_type: string | null;
   applied_rule_category: string | null;
+  salary_adjustment: number | null;
 }
 
 interface Account {
@@ -147,6 +150,9 @@ export default function TransactionList() {
   const [sumExpense, setSumExpense] = useState(0);
   const [sumTransfers, setSumTransfers] = useState(0);
   const [sumRefunds, setSumRefunds] = useState(0);
+  const [summaryVisible, setSummaryVisible] = useState<boolean>(() => {
+    try { return localStorage.getItem("summaryCardsVisible") !== "false"; } catch { return true; }
+  });
   const [page, setPage] = useState(0);
   const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
   const noteRef = useRef<HTMLInputElement>(null);
@@ -671,7 +677,19 @@ export default function TransactionList() {
       </div>
 
       {/* Summary — compact row on mobile, cards on desktop */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+      <div>
+        <button
+          onClick={() => {
+            const next = !summaryVisible;
+            setSummaryVisible(next);
+            try { localStorage.setItem("summaryCardsVisible", String(next)); } catch {}
+          }}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mb-2 ml-auto"
+        >
+          {summaryVisible ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+          {summaryVisible ? "Ascunde rezumat" : "Arată rezumat"}
+        </button>
+        {summaryVisible && <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
         <Card className={`py-0 ${sumIncome === 0 ? "opacity-50 pointer-events-none" : ""}`}>
           <CardContent className="px-2 sm:px-4 py-2 sm:py-3">
             <div className="flex items-start gap-1.5 sm:gap-2.5">
@@ -724,6 +742,7 @@ export default function TransactionList() {
             </div>
           </CardContent>
         </Card>
+        </div>}
       </div>
 
       <Card className="gap-2">
@@ -977,7 +996,7 @@ export default function TransactionList() {
                   <TableCell className={`text-right font-mono text-sm whitespace-nowrap ${
                     txn.type === "cancelled" ? "text-purple-500" : txn.type === "refund" ? "text-emerald-400" : txn.is_transfer ? "text-blue-500" : txn.amount > 0 ? "text-green-600" : txn.amount < 0 ? "text-red-500" : ""
                   }`}>
-                    {txn.amount > 0 ? "+" : ""}{txn.amount.toFixed(2)} {currencySymbol(txn.account_currency)}
+                    {txn.amount > 0 ? "+" : ""}{txn.salary_adjustment != null ? (txn.amount + txn.salary_adjustment).toFixed(2) : txn.amount.toFixed(2)} {currencySymbol(txn.account_currency)}
                   </TableCell>
                   <TableCell className="text-right text-[11px] text-muted-foreground/70 hidden md:table-cell">
                     {txn.original_currency !== txn.account_currency && txn.original_amount

@@ -9,6 +9,7 @@ from typing import Optional, List
 from database import get_db, escape_like
 from models import Transaction, Account, Category, VALID_TRANSACTION_TYPES
 from routers.hidden import compute_hidden_ids
+from routers.salary import get_adjustments_map
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -91,7 +92,17 @@ def list_transactions(
         func.sum(case((Transaction.type == "refund", Transaction.amount), else_=0)).label("refunds"),
     ).first()
     total = totals_q.total if totals_q else 0
-    sum_income = round(totals_q.income or 0, 2) if totals_q else 0
+
+    # Apply salary adjustments to income total
+    adj_map = get_adjustments_map(db)
+    if adj_map:
+        income_rows = q.filter(Transaction.type == "income").with_entities(
+            Transaction.id, Transaction.amount
+        ).all()
+        sum_income = round(sum(r.amount + adj_map.get(r.id, 0) for r in income_rows), 2)
+    else:
+        sum_income = round(totals_q.income or 0, 2) if totals_q else 0
+
     sum_expense = round(totals_q.expense or 0, 2) if totals_q else 0
     sum_transfers = round(totals_q.transfers or 0, 2) if totals_q else 0
     sum_refunds = round(totals_q.refunds or 0, 2) if totals_q else 0
@@ -144,6 +155,7 @@ def list_transactions(
                 "applied_rule_category": t.applied_rule.category.name if t.applied_rule_id and t.applied_rule and t.applied_rule.category else None,
                 "is_hidden": t.is_hidden,
                 "hidden_override": t.hidden_override,
+                "salary_adjustment": adj_map.get(t.id) if t.type == "income" else None,
             }
             for t in transactions
         ],
