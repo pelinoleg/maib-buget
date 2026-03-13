@@ -707,13 +707,13 @@ export default function TransactionList() {
         return (
           <div className={`grid gap-2 ${cols}`}>
             {blocks.map((b) => (
-              <Card key={b.key} className={`py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
-                <CardContent className="px-3 py-1.5">
+              <Card key={b.key} className={`rounded-md shadow-none py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
+                <CardContent className="px-2 py-2">
                   <div className="flex items-center gap-2">
-                    <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
+                    <div className={`p-2 ${b.bg} rounded shrink-0`}>{b.icon}</div>
                     <div className="min-w-0 flex-1">
                       {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
-                      <p className={`text-base font-bold leading-none truncate ${b.cls}`}>{b.value}</p>
+                      <p className={`text-xl font-bold leading-none truncate ${b.cls}`}>{b.value}</p>
                     </div>
                   </div>
                 </CardContent>
