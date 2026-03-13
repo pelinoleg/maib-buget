@@ -481,62 +481,79 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
 
   let y = boxY + boxH + 8;
 
-  // ── Pie chart + Category legend (side by side) ──
-  if (categories.length > 0) {
-    const grandTotal = categories.reduce((s, c) => s + c.total, 0);
+  // ── Helper: draw a donut section (title + donut + right legend) ──
+  // Returns new y after the section. Adds a separator line at the start (if addSeparator=true).
+  const drawDonutSection = (
+    title: string,
+    items: CategorySummary[],
+    addSeparator: boolean,
+  ): number => {
+    const visible = items.filter((c) => c.total > 0);
+    if (visible.length === 0) return y;
+
+    if (y > 200) { doc.addPage(); y = 20; }
+
+    if (addSeparator) {
+      doc.setDrawColor(220);
+      doc.setLineWidth(0.4);
+      doc.line(14, y - 2, w - 14, y - 2);
+      y += 4;
+    }
+
+    const grandTotal = visible.reduce((s, c) => s + c.total, 0);
 
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(30, 41, 59);
-    doc.text(ro("Cheltuieli pe categorii"), 14, y);
-    y += 4;
+    doc.text(ro(title), 14, y);
+    y += 5;
 
-    // Draw pie chart on the left
-    const pieX = 50;
-    const pieY = y + 34;
-    const pieR = 28;
+    const pieX = 52;
+    const pieY = y + 30;
+    const outerR = 26;
+    const innerR = 11; // donut hole
 
-    // Draw pie segments
-    let startAngle = -Math.PI / 2; // start from top
-    for (const cat of categories) {
-      if (cat.total <= 0) continue;
+    // Draw donut segments as trapezoid fans (outer arc - inner arc)
+    let startAngle = -Math.PI / 2;
+    for (const cat of visible) {
       const sweep = (cat.total / grandTotal) * Math.PI * 2;
-      const [r, g, b] = hexToRgb(cat.color);
+      const [r, g, b] = hexToRgb(cat.color || "#6366f1");
       doc.setFillColor(r, g, b);
 
-      // Draw segment as filled polygon (approximate arc with line segments)
       const steps = Math.max(Math.ceil(sweep / 0.05), 4);
-      const points: [number, number][] = [[pieX, pieY]]; // center
+      // Build outer arc points
+      const outerPts: [number, number][] = [];
+      const innerPts: [number, number][] = [];
       for (let i = 0; i <= steps; i++) {
         const a = startAngle + (sweep * i) / steps;
-        points.push([pieX + Math.cos(a) * pieR, pieY + Math.sin(a) * pieR]);
+        outerPts.push([pieX + Math.cos(a) * outerR, pieY + Math.sin(a) * outerR]);
+        innerPts.push([pieX + Math.cos(a) * innerR, pieY + Math.sin(a) * innerR]);
       }
-
-      // Draw as triangle fan
-      for (let i = 1; i < points.length - 1; i++) {
-        doc.triangle(
-          points[0][0], points[0][1],
-          points[i][0], points[i][1],
-          points[i + 1][0], points[i + 1][1],
-          "F"
-        );
+      // Draw as triangle strip between outer and inner arcs
+      for (let i = 0; i < steps; i++) {
+        doc.triangle(outerPts[i][0], outerPts[i][1], outerPts[i+1][0], outerPts[i+1][1], innerPts[i][0], innerPts[i][1], "F");
+        doc.triangle(outerPts[i+1][0], outerPts[i+1][1], innerPts[i+1][0], innerPts[i+1][1], innerPts[i][0], innerPts[i][1], "F");
       }
       startAngle += sweep;
     }
 
-    // Category legend on the right side of pie
-    const legendX = pieX + pieR + 14;
-    let legendY = y + 4;
-    for (const cat of categories) {
+    // Legend on the right
+    const legendX = pieX + outerR + 12;
+    let legendY = y + 2;
+    for (const cat of visible) {
       const pct = grandTotal > 0 ? (cat.total / grandTotal) * 100 : 0;
-      const [r, g, b] = hexToRgb(cat.color);
+      const [r, g, b] = hexToRgb(cat.color || "#6366f1");
       doc.setFillColor(r, g, b);
       doc.roundedRect(legendX, legendY - 2.5, 3, 3, 0.5, 0.5, "F");
 
       doc.setFontSize(7.5);
       doc.setFont("helvetica", "normal");
       doc.setTextColor(50);
-      doc.text(ro(cat.name), legendX + 5, legendY);
+      const nameMaxW = w - legendX - 5 - 42;
+      let name = ro(cat.name);
+      while (name.length > 3 && doc.getTextWidth(name) > nameMaxW) name = name.slice(0, -1);
+      if (name !== ro(cat.name)) name += "..";
+      doc.text(name, legendX + 5, legendY);
 
       doc.setFont("helvetica", "bold");
       doc.setTextColor(80);
@@ -548,7 +565,7 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
       legendY += 5;
     }
 
-    // Total
+    // Total line
     legendY += 2;
     doc.setDrawColor(200);
     doc.setLineWidth(0.3);
@@ -560,7 +577,19 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     doc.text(`${fmt(grandTotal)} ${currency}`, w - 42, legendY, { align: "right" });
     doc.text("100%", w - 16, legendY, { align: "right" });
 
-    y = Math.max(pieY + pieR + 8, legendY + 8);
+    return Math.max(pieY + outerR + 8, legendY + 8);
+  };
+
+  // ── Main donut: Cheltuieli pe categorii ──
+  if (categories.length > 0) {
+    y = drawDonutSection(ro("Cheltuieli pe categorii"), categories, false);
+  }
+
+  // ── Per-category donuts (right after main) ──
+  if (categoryCharts && categoryCharts.length > 0) {
+    for (const cat of categoryCharts) {
+      y = drawDonutSection(ro(cat.name), cat.subcategories || [], true);
+    }
   }
 
   // ── Monthly bar chart ──
@@ -654,90 +683,6 @@ export function exportDashboardPDF(params: DashboardPDFParams) {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     y = (doc as any).lastAutoTable.finalY + 8;
-  }
-
-  // ── Per-category pie charts ──
-  if (categoryCharts && categoryCharts.length > 0) {
-    for (const cat of categoryCharts) {
-      const items = (cat.subcategories || []).filter((s) => s.total > 0);
-      if (items.length === 0) continue;
-
-      if (y > 200) { doc.addPage(); y = 20; }
-
-      const grandTotal = items.reduce((s, c) => s + c.total, 0);
-
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 41, 59);
-      doc.text(ro(cat.name), 14, y);
-      y += 4;
-
-      // Draw pie segments
-      const pieX = 50;
-      const pieY = y + 34;
-      const pieR = 28;
-      let startAngle = -Math.PI / 2;
-
-      for (const item of items) {
-        const sweep = (item.total / grandTotal) * Math.PI * 2;
-        const [r, g, b] = hexToRgb(item.color || "#6366f1");
-        doc.setFillColor(r, g, b);
-
-        const steps = Math.max(Math.ceil(sweep / 0.05), 4);
-        const points: [number, number][] = [[pieX, pieY]];
-        for (let i = 0; i <= steps; i++) {
-          const a = startAngle + (sweep * i) / steps;
-          points.push([pieX + Math.cos(a) * pieR, pieY + Math.sin(a) * pieR]);
-        }
-        for (let i = 1; i < points.length - 1; i++) {
-          doc.triangle(
-            points[0][0], points[0][1],
-            points[i][0], points[i][1],
-            points[i + 1][0], points[i + 1][1],
-            "F"
-          );
-        }
-        startAngle += sweep;
-      }
-
-      // Legend on the right
-      const legendX = pieX + pieR + 14;
-      let legendY = y + 4;
-      for (const item of items) {
-        const pct = grandTotal > 0 ? (item.total / grandTotal) * 100 : 0;
-        const [r, g, b] = hexToRgb(item.color || "#6366f1");
-        doc.setFillColor(r, g, b);
-        doc.roundedRect(legendX, legendY - 2.5, 3, 3, 0.5, 0.5, "F");
-
-        doc.setFontSize(7.5);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(50);
-        doc.text(ro(item.name), legendX + 5, legendY);
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(80);
-        doc.text(`${fmt(item.total)} ${currency}`, w - 42, legendY, { align: "right" });
-        doc.setFontSize(7);
-        doc.setTextColor(130);
-        doc.text(`${pct.toFixed(1)}%`, w - 16, legendY, { align: "right" });
-
-        legendY += 5;
-      }
-
-      // Total line
-      legendY += 2;
-      doc.setDrawColor(200);
-      doc.setLineWidth(0.3);
-      doc.line(legendX, legendY - 3, w - 14, legendY - 3);
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 41, 59);
-      doc.text("Total", legendX + 5, legendY);
-      doc.text(`${fmt(grandTotal)} ${currency}`, w - 42, legendY, { align: "right" });
-      doc.text("100%", w - 16, legendY, { align: "right" });
-
-      y = Math.max(pieY + pieR + 8, legendY + 8);
-    }
   }
 
   // Period comparison
