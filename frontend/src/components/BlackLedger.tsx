@@ -260,13 +260,13 @@ interface SalaryTxn {
 type SalaryPattern = { text: string; match_type: "contains" | "regex" };
 
 function SalaryBlock() {
-  const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(currentYear);
   const [txns, setTxns] = useState<SalaryTxn[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editValue, setEditValue] = useState("");
   const [saving, setSaving] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [collapsedYears, setCollapsedYears] = useState<Set<string>>(new Set());
 
   // Multiple patterns
   const [patterns, setPatterns] = useState<SalaryPattern[]>([
@@ -279,14 +279,22 @@ function SalaryBlock() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getSalaryTransactions({ year, patterns });
+      const data = await getSalaryTransactions({ patterns });
       setTxns(data.transactions);
     } finally {
       setLoading(false);
     }
-  }, [year, patterns]);
+  }, [patterns]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Collapse all years except the most recent on data load
+  useEffect(() => {
+    if (txns.length > 0) {
+      const years = [...new Set(txns.map((t) => t.transaction_date.slice(0, 4)))].sort().reverse();
+      setCollapsedYears(new Set(years.slice(1)));
+    }
+  }, [txns]);
 
   const addPattern = () => {
     if (!newPatternText.trim()) return;
@@ -299,7 +307,6 @@ function SalaryBlock() {
 
   const startEdit = (t: SalaryTxn) => {
     setEditingId(t.id);
-    // show absolute value — user just types the deduction amount
     setEditValue(t.adjustment !== null ? String(Math.abs(t.adjustment)) : "");
   };
 
@@ -310,7 +317,6 @@ function SalaryBlock() {
       if (editValue.trim() === "" || isNaN(val)) {
         if (txn.adjustment !== null) await deleteSalaryAdjustment(txn.id);
       } else {
-        // always store as negative (deduction)
         await upsertSalaryAdjustment({ transaction_id: txn.id, adjustment: -Math.abs(val) });
       }
       setEditingId(null);
@@ -322,6 +328,23 @@ function SalaryBlock() {
 
   const cancelEdit = () => setEditingId(null);
 
+  const toggleYear = (y: string) => {
+    setCollapsedYears((prev) => {
+      const next = new Set(prev);
+      if (next.has(y)) next.delete(y); else next.add(y);
+      return next;
+    });
+  };
+
+  // Group by year
+  const byYear: Record<string, SalaryTxn[]> = {};
+  for (const t of txns) {
+    const y = t.transaction_date.slice(0, 4);
+    if (!byYear[y]) byYear[y] = [];
+    byYear[y].push(t);
+  }
+  const years = Object.keys(byYear).sort().reverse();
+
   const totalReal = txns.reduce((s, t) => s + t.amount, 0);
   const totalAdjusted = txns.reduce((s, t) => s + (t.adjusted_amount ?? t.amount), 0);
   const totalDiff = totalAdjusted - totalReal;
@@ -329,20 +352,9 @@ function SalaryBlock() {
 
   return (
     <div className="space-y-4">
-      {/* Toolbar: year + patterns */}
+      {/* Toolbar: patterns */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Year nav */}
-          <div className="flex items-center gap-1">
-            <button onClick={() => setYear((y) => y - 1)} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-              <ChevronRight className="h-4 w-4 rotate-180" />
-            </button>
-            <span className="text-sm font-medium w-12 text-center">{year}</span>
-            <button onClick={() => setYear((y) => y + 1)} disabled={year >= currentYear} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors disabled:opacity-30">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
           {/* Pattern pills */}
           <div className="flex items-center gap-1.5 flex-wrap flex-1">
             {patterns.map((p, i) => (
@@ -411,79 +423,130 @@ function SalaryBlock() {
         )}
       </div>
 
-      <div className="border rounded-xl overflow-hidden">
-        {loading && <div className="text-sm text-muted-foreground text-center py-6">Se încarcă...</div>}
+      {loading && <div className="text-sm text-muted-foreground text-center py-6">Se încarcă...</div>}
+      {!loading && txns.length === 0 && (
+        <div className="text-sm text-muted-foreground text-center py-6">Nicio tranzacție găsită</div>
+      )}
 
-        {!loading && txns.length === 0 && (
-          <div className="text-sm text-muted-foreground text-center py-6">
-            Nicio tranzacție găsită
-          </div>
-        )}
+      <div className="space-y-4">
+        {years.map((year) => {
+          const yearTxns = byYear[year];
+          const collapsed = collapsedYears.has(year);
+          const yearReal = yearTxns.reduce((s, t) => s + t.amount, 0);
+          const yearAdj = yearTxns.reduce((s, t) => s + (t.adjusted_amount ?? t.amount), 0);
+          const yearDiff = yearAdj - yearReal;
+          const yearHasAdj = yearTxns.some((t) => t.adjustment !== null);
 
-        {!loading && txns.length > 0 && (
-          <div className="divide-y divide-border/50">
-            {txns.map((t) => (
-              <div key={t.id} className={`flex items-center gap-3 px-4 py-3 text-sm ${t.adjustment !== null ? "bg-amber-50/40 dark:bg-amber-950/15" : ""}`}>
-                <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{t.transaction_date}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-muted-foreground text-xs">{t.description}</p>
-                </div>
-
-                {/* Real amount */}
-                <span className="font-mono text-sm flex-shrink-0">{t.amount.toFixed(2)}</span>
-
-                {/* Arrow + adjusted */}
-                {t.adjustment !== null && (
+          return (
+            <div key={year}>
+              {/* Year header */}
+              <button
+                onClick={() => toggleYear(year)}
+                className="w-full flex items-center gap-3 px-1 mb-2 hover:opacity-80 transition-opacity text-left"
+              >
+                {collapsed ? <ChevronRight className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                <span className="text-sm font-semibold text-muted-foreground">{year}</span>
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">{yearTxns.length}</span>
+                {yearHasAdj && (
                   <>
-                    <span className="text-muted-foreground text-xs">→</span>
-                    <span className="font-mono text-sm font-medium flex-shrink-0 text-amber-600 dark:text-amber-400">
-                      {(t.adjusted_amount ?? t.amount).toFixed(2)}
-                    </span>
+                    <span className="text-xs font-mono text-muted-foreground">{yearReal.toFixed(2)} →</span>
+                    <span className="text-xs font-mono font-medium">{yearAdj.toFixed(2)}</span>
+                    <span className={`text-xs font-mono ${yearDiff < 0 ? "text-red-500" : "text-emerald-500"}`}>({yearDiff.toFixed(2)})</span>
                   </>
                 )}
+              </button>
 
-                {/* Edit field */}
-                {editingId === t.id ? (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-xs text-muted-foreground">−</span>
-                    <input
-                      autoFocus
-                      className="w-16 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
-                      placeholder="300"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
-                    />
-                    <button onClick={() => saveEdit(t)} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-                      <Check className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={cancelEdit} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
+              {!collapsed && (
+                <div className="border rounded-xl overflow-hidden">
+                  <div className="divide-y divide-border/50">
+                    {yearTxns.map((t) => {
+                      const isExpanded = expandedId === t.id;
+                      return (
+                        <div key={t.id} className={t.adjustment !== null ? "bg-amber-50/40 dark:bg-amber-950/15" : ""}>
+                          {/* Main row */}
+                          <div className="flex items-center gap-3 px-4 py-3 text-sm">
+                            <span className="text-xs text-muted-foreground flex-shrink-0 w-20">{t.transaction_date}</span>
+                            <div
+                              className="flex-1 min-w-0 cursor-pointer"
+                              onClick={() => setExpandedId(isExpanded ? null : t.id)}
+                            >
+                              <p className={`text-xs truncate ${isExpanded ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                                {t.description}
+                              </p>
+                            </div>
+
+                            {/* Real amount */}
+                            <span className="font-mono text-sm flex-shrink-0">{t.amount.toFixed(2)}</span>
+
+                            {/* Arrow + adjusted */}
+                            {t.adjustment !== null && (
+                              <>
+                                <span className="text-muted-foreground text-xs">→</span>
+                                <span className="font-mono text-sm font-medium flex-shrink-0 text-amber-600 dark:text-amber-400">
+                                  {(t.adjusted_amount ?? t.amount).toFixed(2)}
+                                </span>
+                              </>
+                            )}
+
+                            {/* Edit field */}
+                            {editingId === t.id ? (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <span className="text-xs text-muted-foreground">−</span>
+                                <input
+                                  autoFocus
+                                  className="w-16 h-7 px-2 text-xs font-mono rounded border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                                  placeholder="300"
+                                  value={editValue}
+                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onKeyDown={(e) => { if (e.key === "Enter") saveEdit(t); if (e.key === "Escape") cancelEdit(); }}
+                                />
+                                <button onClick={() => saveEdit(t)} disabled={saving} className="h-7 w-7 flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={cancelEdit} className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-accent transition-colors">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => startEdit(t)}
+                                  className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  {t.adjustment !== null ? `−${Math.abs(t.adjustment)}` : "corecție"}
+                                </button>
+                                {t.adjustment !== null && (
+                                  <button
+                                    onClick={async () => { await deleteSalaryAdjustment(t.id); await load(); }}
+                                    className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Expanded description */}
+                          {isExpanded && (
+                            <div className="px-4 pb-3 pt-0 text-xs text-muted-foreground border-t border-border/40 bg-muted/20">
+                              <p className="break-all leading-relaxed pt-2">{t.description}</p>
+                              {t.account_name && (
+                                <p className="mt-1 text-muted-foreground/70">{t.account_name} · {t.currency}</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : (
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => startEdit(t)}
-                      className="h-7 px-2 flex items-center gap-1 text-xs rounded-md hover:bg-accent transition-colors text-muted-foreground"
-                    >
-                      <Pencil className="h-3 w-3" />
-                      {t.adjustment !== null ? `−${Math.abs(t.adjustment)}` : "corecție"}
-                    </button>
-                    {t.adjustment !== null && (
-                      <button
-                        onClick={async () => { await deleteSalaryAdjustment(t.id); await load(); }}
-                        className="h-7 w-7 flex items-center justify-center rounded-md hover:bg-destructive/10 text-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -617,7 +680,7 @@ export default function BlackLedger() {
       {tab === "salary" && <SalaryBlock />}
 
       {tab === "filters" && (
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 items-start">
+        <div className={`grid grid-cols-1 gap-5 items-start ${showAddFilter || editingFilter ? "lg:grid-cols-[500px_1fr]" : "lg:grid-cols-[340px_1fr]"} transition-all`}>
 
           {/* LEFT: Filter list */}
           <div className="space-y-3">
@@ -768,6 +831,19 @@ export default function BlackLedger() {
             {/* Compact stats bar */}
             {!loading && (
               <div className="flex items-center gap-4 text-xs text-muted-foreground border-b pb-2">
+                <button
+                  onClick={() => {
+                    const allMonths = months;
+                    const allCollapsed = allMonths.every((m) => collapsedMonths.has(m));
+                    setCollapsedMonths(allCollapsed ? new Set() : new Set(allMonths));
+                  }}
+                  className="flex items-center gap-1 hover:text-foreground transition-colors flex-shrink-0"
+                  title={months.every((m) => collapsedMonths.has(m)) ? "Extinde toate" : "Colapsează toate"}
+                >
+                  {months.every((m) => collapsedMonths.has(m))
+                    ? <ChevronRight className="h-3 w-3" />
+                    : <ChevronDown className="h-3 w-3" />}
+                </button>
                 <span>
                   <span className="font-medium text-foreground">{transactions.length}</span> tranzacții
                 </span>
