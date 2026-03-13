@@ -677,7 +677,7 @@ export default function BlackLedger() {
         </button>
       </div>
 
-      {tab === "salary" && <SalaryBlock />}
+      {tab === "salary" && <div className="max-w-4xl"><SalaryBlock /></div>}
 
       {tab === "filters" && (
         <div className={`grid grid-cols-1 gap-5 items-start ${showAddFilter || editingFilter ? "lg:grid-cols-[500px_1fr]" : "lg:grid-cols-[340px_1fr]"} transition-all`}>
