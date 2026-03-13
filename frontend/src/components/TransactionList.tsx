@@ -713,7 +713,7 @@ export default function TransactionList() {
                     <div className={`p-1 ${b.bg} rounded shrink-0`}>{b.icon}</div>
                     <div className="min-w-0 flex-1">
                       {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
-                      <p className={`text-sm font-bold leading-none ${b.cls}`}>{b.value}</p>
+                      <p className={`text-base font-bold leading-none truncate ${b.cls}`}>{b.value}</p>
                     </div>
                   </div>
                 </CardContent>
