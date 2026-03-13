@@ -160,10 +160,6 @@ function getPreviousPeriod(from: string, to: string): { dateFrom: string; dateTo
   return { dateFrom: format(prevFrom, "yyyy-MM-dd"), dateTo: format(prevTo, "yyyy-MM-dd") };
 }
 
-function deltaPercent(current: number, previous: number): number | null {
-  if (previous === 0) return null;
-  return ((current - previous) / previous) * 100;
-}
 
 function TopExpensesFilter({
   allCategories,
