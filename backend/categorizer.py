@@ -22,6 +22,8 @@ def apply_rules(db: Session, transactions: list[Transaction] = None):
 
     count = 0
     for txn in transactions:
+        if txn.categorized_by == "manual":
+            continue
         desc = txn.description
         best_rule = None
         for rule in rules:
