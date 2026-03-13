@@ -677,7 +677,7 @@ export default function BlackLedger() {
         </button>
       </div>
 
-      {tab === "salary" && <div className="max-w-4xl"><SalaryBlock /></div>}
+      {tab === "salary" && <div className="max-w-4xl mx-auto"><SalaryBlock /></div>}
 
       {tab === "filters" && (
         <div className={`grid grid-cols-1 gap-5 items-start ${showAddFilter || editingFilter ? "lg:grid-cols-[500px_1fr]" : "lg:grid-cols-[340px_1fr]"} transition-all`}>
@@ -711,9 +711,6 @@ export default function BlackLedger() {
 
             <div className="space-y-1.5">
               {filters.map((f) => {
-                const ftxns = transactions.filter((t) => t.matched_filter?.id === f.id);
-                const exp = ftxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
-                const inc = ftxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
                 const meta = MATCH_TYPE_META[f.match_type];
                 const isSelected = selectedFilterId === f.id;
 
@@ -748,14 +745,6 @@ export default function BlackLedger() {
                             <p className="text-[11px] text-muted-foreground mt-0.5 font-mono truncate">
                               {f.match_type === "category" ? f.category_name : f.pattern}
                             </p>
-                            {/* Inline stats */}
-                            {ftxns.length > 0 && (
-                              <div className="flex items-center gap-2 mt-1 text-[11px]">
-                                <span className="text-muted-foreground">{ftxns.length} txn</span>
-                                {exp > 0 && <span className="text-red-500 font-mono">−{exp.toFixed(0)}</span>}
-                                {inc > 0 && <span className="text-emerald-500 font-mono">+{inc.toFixed(0)}</span>}
-                              </div>
-                            )}
                           </div>
                           {/* Actions */}
                           <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -803,20 +792,51 @@ export default function BlackLedger() {
                       const ftxns = transactions.filter((t) => t.matched_filter?.id === f.id);
                       if (ftxns.length === 0) return null;
                       const meta = MATCH_TYPE_META[f.match_type];
-                      const exp = ftxns.filter((t) => t.type === "expense").reduce((s, t) => s + Math.abs(t.amount), 0);
-                      const inc = ftxns.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+                      const txnCount = ftxns.length;
                       const monthCount = new Set(ftxns.map((t) => t.transaction_date.slice(0, 7))).size;
+
+                      // Group expenses by currency
+                      const expByCurrency: Record<string, number> = {};
+                      for (const t of ftxns.filter((t) => t.type === "expense")) {
+                        const cur = t.account_currency ?? "?";
+                        expByCurrency[cur] = (expByCurrency[cur] ?? 0) + Math.abs(t.amount);
+                      }
+                      const incByCurrency: Record<string, number> = {};
+                      for (const t of ftxns.filter((t) => t.type === "income")) {
+                        const cur = t.account_currency ?? "?";
+                        incByCurrency[cur] = (incByCurrency[cur] ?? 0) + t.amount;
+                      }
+
                       return (
-                        <div key={f.id} className="px-3 py-2.5 space-y-1">
+                        <div key={f.id} className="px-3 py-3 space-y-2">
                           <div className="flex items-center gap-1.5">
-                            <span className={`text-[10px] font-mono px-1 py-0.5 rounded-sm ${meta.badge}`}>{meta.label}</span>
+                            <span className={`text-[10px] font-mono px-1 py-0.5 rounded-sm flex-shrink-0 ${meta.badge}`}>{meta.label}</span>
                             <span className="text-xs font-medium truncate">{f.name}</span>
+                            {!f.is_active && <span className="text-[10px] text-muted-foreground ml-auto flex-shrink-0">inactiv</span>}
                           </div>
-                          <div className="flex items-center gap-3 text-[11px]">
-                            <span className="text-muted-foreground">{ftxns.length} txn · {monthCount} luni</span>
-                            {exp > 0 && <span className="text-red-500 font-mono">−{exp.toFixed(2)}</span>}
-                            {inc > 0 && <span className="text-emerald-500 font-mono">+{inc.toFixed(2)}</span>}
+                          <div className="text-[11px] text-muted-foreground">
+                            {txnCount} tranzacții · {monthCount} {monthCount === 1 ? "lună" : "luni"}
                           </div>
+                          {Object.keys(expByCurrency).length > 0 && (
+                            <div className="space-y-0.5">
+                              {Object.entries(expByCurrency).map(([cur, sum]) => (
+                                <div key={cur} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-muted-foreground">Cheltuieli</span>
+                                  <span className="font-mono text-red-500">−{sum.toFixed(2)} <span className="opacity-60">{cur}</span></span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {Object.keys(incByCurrency).length > 0 && (
+                            <div className="space-y-0.5">
+                              {Object.entries(incByCurrency).map(([cur, sum]) => (
+                                <div key={cur} className="flex items-center justify-between text-[11px]">
+                                  <span className="text-muted-foreground">Venituri</span>
+                                  <span className="font-mono text-emerald-500">+{sum.toFixed(2)} <span className="opacity-60">{cur}</span></span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
