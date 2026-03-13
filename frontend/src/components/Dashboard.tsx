@@ -1011,9 +1011,9 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             {(() => {
-              // Top 5 expense categories + any currently excluded (so user can un-exclude)
-              const top5 = byCategory.slice(0, 5).map((c) => c.name);
-              const categoryNames = [...new Set([...top5, ...excludedCategories])];
+              // Categories from the visible top expenses + any currently excluded (so user can un-exclude)
+              const fromTop = topExpenses.map((t) => t.category_name).filter(Boolean) as string[];
+              const categoryNames = [...new Set([...fromTop, ...excludedCategories])];
               return (
                 <>
                   {categoryNames.length > 1 && (

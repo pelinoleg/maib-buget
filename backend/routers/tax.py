@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from models import Transaction, Account
 from bnm import fetch_bnm_rates
+from routers.salary import get_adjustments_map
 
 router = APIRouter(prefix="/api/tax", tags=["tax"])
 
@@ -24,6 +25,7 @@ def get_tax_config():
 @router.get("/income")
 def get_tax_income(year: int = Query(...), db: Session = Depends(get_db)):
     """Get all income transactions for a given year."""
+    adj_map = get_adjustments_map(db)
     txns = db.query(Transaction).options(
         joinedload(Transaction.account),
     ).join(Account).filter(
@@ -35,11 +37,12 @@ def get_tax_income(year: int = Query(...), db: Session = Depends(get_db)):
 
     incomes = []
     for t in txns:
+        amount = t.amount + adj_map.get(t.id, 0)
         incomes.append({
             "id": t.id,
             "date": t.transaction_date,
             "description": t.description,
-            "amount": t.amount,
+            "amount": amount,
             "currency": t.account.currency if t.account else "?",
             "account_name": t.account.name if t.account else "?",
         })
@@ -53,6 +56,7 @@ class ConvertRequest(BaseModel):
 
 def convert_incomes_to_mdl(db: Session, year: int) -> dict:
     """Core conversion logic — reusable by API endpoint and Telegram bot."""
+    adj_map = get_adjustments_map(db)
     txns = db.query(Transaction).options(
         joinedload(Transaction.account),
     ).join(Account).filter(
@@ -71,9 +75,10 @@ def convert_incomes_to_mdl(db: Session, year: int) -> dict:
     errors = []
 
     for t in txns:
+        amount = t.amount + adj_map.get(t.id, 0)
         currency = t.account.currency if t.account else None
         if not currency or currency == "MDL":
-            amount_mdl = abs(t.amount)
+            amount_mdl = abs(amount)
             rate = 1.0
         else:
             try:
@@ -82,7 +87,7 @@ def convert_incomes_to_mdl(db: Session, year: int) -> dict:
                 if rate == 0:
                     errors.append(f"No rate for {currency} on {t.transaction_date}")
                     rate = 0
-                amount_mdl = abs(t.amount) * rate
+                amount_mdl = abs(amount) * rate
             except Exception as e:
                 errors.append(f"Error fetching rate for {t.transaction_date}: {str(e)}")
                 rate = 0
@@ -93,7 +98,7 @@ def convert_incomes_to_mdl(db: Session, year: int) -> dict:
             "id": t.id,
             "date": t.transaction_date,
             "description": t.description,
-            "amount": t.amount,
+            "amount": amount,
             "currency": currency or "?",
             "account_name": t.account.name if t.account else "?",
             "rate": round(rate, 4),
