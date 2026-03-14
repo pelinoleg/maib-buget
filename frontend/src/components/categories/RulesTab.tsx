@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Check, X, BookOpen, RefreshCw } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -169,26 +168,16 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
 
   return (
     <div className="space-y-4">
-      {/* Apply rules block */}
-      <Card>
-        <CardContent className="pt-4 pb-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleApplyNew}>
-                <BookOpen className="h-3.5 w-3.5" /> Aplică necategorisate
-              </Button>
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">Doar tranzacțiile fără categorie</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={handleReapplyAll}>
-                <RefreshCw className="h-3.5 w-3.5" /> Re-aplică toate
-              </Button>
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">Toate tranzacțiile, suprascrie categoriile existente</span>
-            </div>
-            {applyStatus && <span className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded">{applyStatus}</span>}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Apply rules block — primary action */}
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" className="gap-1.5" onClick={handleApplyNew}>
+          <BookOpen className="h-4 w-4" /> Aplică necategorisate
+        </Button>
+        <Button size="sm" variant="secondary" className="gap-1.5" onClick={handleReapplyAll}>
+          <RefreshCw className="h-4 w-4" /> Re-aplică toate
+        </Button>
+        {applyStatus && <span className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded self-center">{applyStatus}</span>}
+      </div>
 
       {/* Add form — always visible */}
       <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
