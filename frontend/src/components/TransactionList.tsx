@@ -693,6 +693,13 @@ export default function TransactionList() {
           <FilterSidebar open={filtersOpen} onOpenChange={setFiltersOpen} activeFilterCount={activeFilterCount} activeChips={activeChips}>
             {filterContent}
           </FilterSidebar>
+          <button
+            onClick={() => { const next = !summaryCollapsed; setSummaryCollapsed(next); try { localStorage.setItem("summaryCollapsed", String(next)); } catch {} }}
+            className="h-6 w-6 flex items-center justify-center rounded border border-border bg-muted/60 hover:bg-muted transition-colors flex-shrink-0"
+            title={summaryCollapsed ? "Arată rezumat" : "Ascunde rezumat"}
+          >
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${summaryCollapsed ? "" : "rotate-180"}`} />
+          </button>
         </div>
       </div>
 
@@ -707,35 +714,22 @@ export default function TransactionList() {
         ].filter((b) => b.show);
         if (blocks.length === 0) return null;
         const cols = blocks.length <= 2 ? `grid-cols-${blocks.length}` : blocks.length === 3 ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-4";
-        const toggleBtn = (
-          <button
-            onClick={() => { const next = !summaryCollapsed; setSummaryCollapsed(next); try { localStorage.setItem("summaryCollapsed", String(next)); } catch {} }}
-            className="h-6 w-6 flex items-center justify-center rounded border border-border bg-muted/60 hover:bg-muted transition-colors flex-shrink-0 self-start mt-0.5"
-            title={summaryCollapsed ? "Arată rezumat" : "Ascunde rezumat"}
-          >
-            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${summaryCollapsed ? "" : "rotate-180"}`} />
-          </button>
-        );
-        return summaryCollapsed ? (
-          <div className="flex justify-end">{toggleBtn}</div>
-        ) : (
-          <div className="flex items-start gap-2">
-            <div className={`grid gap-2 flex-1 ${cols}`}>
-              {blocks.map((b) => (
-                <Card key={b.key} className={`rounded-md shadow-none py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
-                  <CardContent className="px-2 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`p-2 ${b.bg} rounded shrink-0`}>{b.icon}</div>
-                      <div className="min-w-0 flex-1">
-                        {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
-                        <p className={`text-xl font-bold leading-none truncate ${b.cls}`}>{b.value}</p>
-                      </div>
+        if (summaryCollapsed) return null;
+        return (
+          <div className={`grid gap-2 ${cols}`}>
+            {blocks.map((b) => (
+              <Card key={b.key} className={`rounded-md shadow-none py-0 transition-opacity ${b.zero ? "opacity-30" : ""}`}>
+                <CardContent className="px-2 py-2">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 ${b.bg} rounded shrink-0`}>{b.icon}</div>
+                    <div className="min-w-0 flex-1">
+                      {"label" in b && b.label && <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{b.label}</p>}
+                      <p className={`text-xl font-bold leading-none truncate ${b.cls}`}>{b.value}</p>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-            {toggleBtn}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         );
       })()}
