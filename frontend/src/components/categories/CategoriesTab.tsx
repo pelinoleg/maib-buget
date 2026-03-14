@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Check, X, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -173,42 +174,54 @@ export default function CategoriesTab({ categories, reload }: Props) {
   return (
     <div className="space-y-4">
       {/* Add form — always visible at top */}
-      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
-        <div className="flex flex-wrap gap-1">
-          {COLORS.map((c) => (
-            <button
-              key={c}
-              onClick={() => setNewColor(c)}
-              className={`w-4 h-4 rounded-full transition-transform ${newColor === c ? "ring-2 ring-offset-1 ring-primary scale-110" : ""}`}
-              style={{ backgroundColor: c }}
+      <Card className="border-primary/20 bg-primary/[0.03]">
+        <CardContent className="pt-3 pb-3 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categorie nouă</p>
+          {/* Name + color preview + button */}
+          <div className="flex items-center gap-2">
+            <div
+              className="w-6 h-6 rounded-full shrink-0 border-2 border-white shadow-sm"
+              style={{ backgroundColor: newColor }}
             />
-          ))}
-        </div>
-        <Input
-          placeholder="Nume categorie nouă..."
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          className="h-8 text-sm w-48"
-        />
-        <Select value={newParent} onValueChange={setNewParent}>
-          <SelectTrigger className="h-8 text-sm w-44">
-            <SelectValue placeholder="Fara parinte" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">Fara parinte</SelectItem>
-            {parentOptions.map((p) => (
-              <SelectItem key={p.id} value={String(p.id)}>
-                {p.depth > 0 && <ChevronRight className="h-3 w-3 inline mr-1 text-muted-foreground" />}
-                {p.label}
-              </SelectItem>
+            <Input
+              placeholder="Nume categorie..."
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              className="h-8 text-sm flex-1"
+              autoFocus
+            />
+            <Select value={newParent} onValueChange={setNewParent}>
+              <SelectTrigger className="h-8 text-sm w-40 shrink-0">
+                <SelectValue placeholder="Fără părinte" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Fără părinte</SelectItem>
+                {parentOptions.map((p) => (
+                  <SelectItem key={p.id} value={String(p.id)}>
+                    {p.depth > 0 && <ChevronRight className="h-3 w-3 inline mr-1 text-muted-foreground" />}
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="h-8 shrink-0">
+              <Plus className="h-3.5 w-3.5" /> Adaugă
+            </Button>
+          </div>
+          {/* Color swatches */}
+          <div className="flex flex-wrap gap-1.5">
+            {COLORS.map((c) => (
+              <button
+                key={c}
+                onClick={() => setNewColor(c)}
+                className={`w-5 h-5 rounded-full transition-all ${newColor === c ? "ring-2 ring-offset-1 ring-primary scale-110" : "opacity-70 hover:opacity-100 hover:scale-105"}`}
+                style={{ backgroundColor: c }}
+              />
             ))}
-          </SelectContent>
-        </Select>
-        <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="h-8">
-          <Plus className="h-3.5 w-3.5 mr-1" /> Adauga
-        </Button>
-      </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Categories as grouped chips — 3 levels */}
       <div className="space-y-5">
