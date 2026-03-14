@@ -170,14 +170,29 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
   return (
     <div className="space-y-4">
       {/* Apply rules block — primary action */}
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" className="gap-1.5" onClick={handleApplyNew}>
-          <BookOpen className="h-4 w-4" /> Aplică necategorisate
-        </Button>
-        <Button size="sm" variant="secondary" className="gap-1.5" onClick={handleReapplyAll}>
-          <RefreshCw className="h-4 w-4" /> Re-aplică toate
-        </Button>
-        {applyStatus && <span className="text-xs text-muted-foreground bg-accent px-2 py-1 rounded self-center">{applyStatus}</span>}
+      <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/50 border border-border items-center">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <BookOpen className="h-4 w-4 text-primary shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-none">Aplică reguli</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Doar tranzacțiile fără categorie</p>
+          </div>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={handleApplyNew}>
+            Aplică
+          </Button>
+        </div>
+        <div className="w-px h-8 bg-border hidden sm:block" />
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-none">Re-aplică toate</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Suprascrie categoriile existente</p>
+          </div>
+          <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={handleReapplyAll}>
+            Re-aplică
+          </Button>
+        </div>
+        {applyStatus && <p className="w-full text-xs text-muted-foreground text-center">{applyStatus}</p>}
       </div>
 
       {/* Add form — always visible */}
