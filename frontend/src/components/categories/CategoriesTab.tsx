@@ -57,7 +57,6 @@ export default function CategoriesTab({ categories, reload }: Props) {
       parent_id: newParent !== "none" ? parseInt(newParent) : null,
     });
     setNewName("");
-    setShowAddForm(false);
     reload();
   };
 
