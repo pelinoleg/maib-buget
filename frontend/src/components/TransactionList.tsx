@@ -76,6 +76,7 @@ import { getSavedFilters, createSavedFilter, deleteSavedFilter } from "@/lib/api
 import { downloadCSV } from "@/lib/csv";
 import { exportTransactionsPDF } from "@/lib/pdf";
 import { getSummaryPrefs } from "@/lib/summaryPrefs";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 
 interface Transaction {
   id: number;
@@ -161,6 +162,7 @@ export default function TransactionList() {
   const [bulkMode, setBulkMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [refreshKey, setRefreshKey] = useState(0);
+  usePullToRefresh(() => setRefreshKey((k) => k + 1));
   const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
   const [splitTarget, setSplitTarget] = useState<Transaction | null>(null);
   const [splitDesc, setSplitDesc] = useState("");

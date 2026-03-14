@@ -49,6 +49,7 @@ import { getPdfChartCategories } from "@/components/Settings";
 import { currencySymbol } from "@/lib/currency";
 import { useChartEngine } from "@/lib/chartEngine";
 import { getSummaryPrefs } from "@/lib/summaryPrefs";
+import { usePullToRefresh } from "@/lib/usePullToRefresh";
 import { LazyMuiDonutChart as MuiDonutChart, LazyMuiBarChart as MuiBarChart, LazyMuiSparkLine as MuiSparkLine } from "@/components/charts";
 
 interface Summary {
@@ -410,6 +411,7 @@ export default function Dashboard() {
 
   useEffect(reload, [dateFrom, dateTo, accountId, bankFilter]);
   useEffect(reloadTopExpenses, [excludedCategoryIds]);
+  usePullToRefresh(reload);
 
   const loadCategoryTrend = async (catId: number | null, name: string, color: string) => {
     if (catId === trendCategoryId) {
