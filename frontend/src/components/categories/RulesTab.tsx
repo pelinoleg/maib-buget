@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { createCategoryRule, updateCategoryRule, deleteCategoryRule, applyRules, reapplyAllRules } from "@/lib/api";
+import { createCategoryRule, updateCategoryRule, deleteCategoryRule, applyRules, reapplyAllRules, previewCategoryRule } from "@/lib/api";
 import type { Category, Rule } from "./types";
 import { CategorySelectItems } from "./CategorySelect";
 
@@ -40,14 +40,28 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
   const [editPriority, setEditPriority] = useState(1);
   const [selectedRules, setSelectedRules] = useState<Set<number>>(new Set());
   const [mergeCategoryId, setMergeCategoryId] = useState("");
+  const [preview, setPreview] = useState<{ count: number; uncategorized: number; examples: { id: number; description: string; amount: number; date: string }[] } | null>(null);
+  const [previewing, setPreviewing] = useState(false);
   const handleCreateRule = async () => {
     if (!newPattern.trim() || !ruleCategory) return;
     const result = await createCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory), match_type: newMatchType, priority: newPriority });
     setNewPattern("");
     setNewMatchType("contains");
     setNewPriority(1);
+    setPreview(null);
     setAiStatus(`Regulă creată. Aplicată la ${result.applied_to} tranzacții.`);
     reload();
+  };
+
+  const handlePreview = async () => {
+    if (!newPattern.trim()) return;
+    setPreviewing(true);
+    try {
+      const result = await previewCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory) || 0, match_type: newMatchType, priority: newPriority });
+      setPreview(result);
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const startEditRule = (r: Rule) => {
@@ -218,7 +232,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
             <Input
               placeholder={newMatchType === "regex" ? "Regex (ex: WEB\\s*DEV)" : "Pattern (ex: Netflix, Amazon)"}
               value={newPattern}
-              onChange={(e) => setNewPattern(e.target.value)}
+              onChange={(e) => { setNewPattern(e.target.value); setPreview(null); }}
               onKeyDown={(e) => e.key === "Enter" && handleCreateRule()}
               className={`h-8 text-sm flex-1 min-w-[140px] ${newMatchType === "regex" ? "font-mono" : ""}`}
             />
@@ -239,10 +253,42 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                 className="h-8 w-12 text-xs text-center px-1"
               />
             </div>
+            <button
+              type="button"
+              onClick={handlePreview}
+              disabled={!newPattern.trim() || previewing}
+              className="h-8 px-3 text-xs rounded-md border hover:bg-accent transition-colors shrink-0 disabled:opacity-40"
+            >
+              {previewing ? "..." : "Previzualizare"}
+            </button>
             <Button size="sm" onClick={handleCreateRule} disabled={!newPattern.trim() || !ruleCategory} className="h-8 shrink-0">
               <Plus className="h-3.5 w-3.5" /> Adaugă
             </Button>
           </div>
+          {/* Preview results */}
+          {preview && (
+            <div className="mt-1 rounded-md border border-border bg-muted/40 px-3 py-2 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{preview.count} tranzacții găsite</span>
+                {preview.uncategorized > 0 && (
+                  <span className="text-xs text-muted-foreground">({preview.uncategorized} fără categorie)</span>
+                )}
+                <button onClick={() => setPreview(null)} className="ml-auto text-muted-foreground hover:text-foreground text-xs">✕</button>
+              </div>
+              {preview.examples.map((ex) => (
+                <div key={ex.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="shrink-0 text-[10px] tabular-nums">{ex.date.slice(0, 10)}</span>
+                  <span className="flex-1 truncate">{ex.description}</span>
+                  <span className={`shrink-0 font-medium tabular-nums ${ex.amount < 0 ? "text-destructive" : "text-green-600"}`}>
+                    {ex.amount < 0 ? "" : "+"}{ex.amount.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+              {preview.count > preview.examples.length && (
+                <p className="text-[10px] text-muted-foreground">+ {preview.count - preview.examples.length} mai multe...</p>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -205,6 +205,34 @@ def _count_matching(db: Session, pattern: str, source_example: str = None) -> in
     return db.query(func.count(Transaction.id)).filter(_match_filter(pattern, source_example)).scalar() or 0
 
 
+@router.post("/rules/preview")
+def preview_rule(data: RuleCreate, db: Session = Depends(get_db)):
+    """Preview how many transactions a category rule would match (before saving)."""
+    import re as _re
+    if data.match_type == "regex":
+        try:
+            _re.compile(data.pattern)
+        except _re.error as e:
+            raise HTTPException(400, f"Invalid regex: {e}")
+        txns = db.query(Transaction).filter(
+            Transaction.is_transfer == False,
+        ).all()
+        matched = [t for t in txns if _re.search(data.pattern, t.description or "", _re.IGNORECASE)]
+    else:
+        matched = db.query(Transaction).filter(
+            Transaction.is_transfer == False,
+            Transaction.description.ilike(f"%{data.pattern}%"),
+        ).all()
+    return {
+        "count": len(matched),
+        "uncategorized": sum(1 for t in matched if t.category_id is None),
+        "examples": [
+            {"id": t.id, "description": t.description, "amount": t.amount, "date": t.transaction_date}
+            for t in sorted(matched, key=lambda t: t.transaction_date, reverse=True)[:5]
+        ],
+    }
+
+
 @router.get("/rules/{rule_id}/sample-transactions")
 def sample_transactions_for_rule(rule_id: int, db: Session = Depends(get_db)):
     """Return up to 3 recent transactions matching a rule's pattern."""
