@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Check, X, BookOpen, RefreshCw } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -180,48 +181,55 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
       </div>
 
       {/* Add form — always visible */}
-      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
-        <button
-          type="button"
-          onClick={() => setNewMatchType(newMatchType === "contains" ? "regex" : "contains")}
-          className={`shrink-0 text-[10px] font-mono px-1.5 py-1 rounded border ${newMatchType === "regex" ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300" : "bg-muted border-border text-muted-foreground"}`}
-          title={newMatchType === "contains" ? "Conține text (apasă pentru regex)" : "Regex (apasă pentru contains)"}
-        >
-          {newMatchType === "regex" ? ".*" : "ab"}
-        </button>
-        <Input
-          placeholder={newMatchType === "regex" ? "Regex (ex: WEB\\s*DEV)" : "Pattern (ex: Netflix, Amazon)"}
-          value={newPattern}
-          onChange={(e) => setNewPattern(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleCreateRule()}
-          className={`h-8 text-sm flex-1 min-w-[140px] ${newMatchType === "regex" ? "font-mono" : ""}`}
-        />
-        <Select value={ruleCategory} onValueChange={setRuleCategory}>
-          <SelectTrigger className="h-8 text-sm w-44">
-            <SelectValue placeholder="Categorie" />
-          </SelectTrigger>
-          <SelectContent>
-            <CategorySelectItems categories={categories} />
-          </SelectContent>
-        </Select>
-        <div className="flex items-center gap-1 shrink-0" title="Prioritate (1-10)">
-          <span className="text-[10px] text-muted-foreground">P</span>
-          <Input
-            type="number" min={1} max={10}
-            value={newPriority}
-            onChange={(e) => setNewPriority(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-            className="h-8 w-12 text-xs text-center px-1"
-          />
-        </div>
-        <Button size="sm" onClick={handleCreateRule} disabled={!newPattern.trim() || !ruleCategory} className="h-8">
-          <Plus className="h-3.5 w-3.5 mr-1" /> Adaugă
-        </Button>
-        {rules.length > 1 && (
-          <Button variant="ghost" size="sm" className="h-8 ml-auto" onClick={toggleAllRules}>
-            {selectedRules.size === rules.length ? "Deselectează tot" : "Selectează tot"}
-          </Button>
-        )}
-      </div>
+      <Card className="border-primary/20 bg-primary/[0.03]">
+        <CardContent className="pt-3 pb-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Regulă nouă</p>
+            {rules.length > 1 && (
+              <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={toggleAllRules}>
+                {selectedRules.size === rules.length ? "Deselectează tot" : "Selectează tot"}
+              </Button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setNewMatchType(newMatchType === "contains" ? "regex" : "contains")}
+              className={`shrink-0 text-[11px] font-mono px-2 py-1 rounded-md border font-semibold transition-colors ${newMatchType === "regex" ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300" : "bg-muted border-border text-muted-foreground hover:text-foreground"}`}
+              title={newMatchType === "contains" ? "Conține text — apasă pentru regex" : "Regex — apasă pentru contains"}
+            >
+              {newMatchType === "regex" ? ".*" : "ab"}
+            </button>
+            <Input
+              placeholder={newMatchType === "regex" ? "Regex (ex: WEB\\s*DEV)" : "Pattern (ex: Netflix, Amazon)"}
+              value={newPattern}
+              onChange={(e) => setNewPattern(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateRule()}
+              className={`h-8 text-sm flex-1 min-w-[140px] ${newMatchType === "regex" ? "font-mono" : ""}`}
+            />
+            <Select value={ruleCategory} onValueChange={setRuleCategory}>
+              <SelectTrigger className="h-8 text-sm w-44 shrink-0">
+                <SelectValue placeholder="Categorie" />
+              </SelectTrigger>
+              <SelectContent>
+                <CategorySelectItems categories={categories} />
+              </SelectContent>
+            </Select>
+            <div className="flex items-center gap-1 shrink-0" title="Prioritate (1-10)">
+              <span className="text-[10px] text-muted-foreground">P</span>
+              <Input
+                type="number" min={1} max={10}
+                value={newPriority}
+                onChange={(e) => setNewPriority(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                className="h-8 w-12 text-xs text-center px-1"
+              />
+            </div>
+            <Button size="sm" onClick={handleCreateRule} disabled={!newPattern.trim() || !ruleCategory} className="h-8 shrink-0">
+              <Plus className="h-3.5 w-3.5" /> Adaugă
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Bulk actions bar */}
       {selectedRules.size > 0 && (
