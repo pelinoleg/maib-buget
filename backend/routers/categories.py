@@ -228,7 +228,7 @@ def preview_rule(data: RuleCreate, db: Session = Depends(get_db)):
         "uncategorized": sum(1 for t in matched if t.category_id is None),
         "examples": [
             {"id": t.id, "description": t.description, "amount": t.amount, "date": t.transaction_date}
-            for t in sorted(matched, key=lambda t: t.transaction_date, reverse=True)[:5]
+            for t in sorted(matched, key=lambda t: t.transaction_date, reverse=True)[:50]
         ],
     }
 

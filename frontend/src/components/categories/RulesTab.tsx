@@ -42,6 +42,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
   const [mergeCategoryId, setMergeCategoryId] = useState("");
   const [preview, setPreview] = useState<{ count: number; uncategorized: number; examples: { id: number; description: string; amount: number; date: string }[] } | null>(null);
   const [previewing, setPreviewing] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(5);
   const handleCreateRule = async () => {
     if (!newPattern.trim() || !ruleCategory) return;
     const result = await createCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory), match_type: newMatchType, priority: newPriority });
@@ -59,6 +60,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
     try {
       const result = await previewCategoryRule({ pattern: newPattern, category_id: parseInt(ruleCategory) || 0, match_type: newMatchType, priority: newPriority });
       setPreview(result);
+      setPreviewVisible(5);
     } finally {
       setPreviewing(false);
     }
@@ -232,7 +234,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
             <Input
               placeholder={newMatchType === "regex" ? "Regex (ex: WEB\\s*DEV)" : "Pattern (ex: Netflix, Amazon)"}
               value={newPattern}
-              onChange={(e) => { setNewPattern(e.target.value); setPreview(null); }}
+              onChange={(e) => { setNewPattern(e.target.value); setPreview(null); setPreviewVisible(5); }}
               onKeyDown={(e) => e.key === "Enter" && handleCreateRule()}
               className={`h-8 text-sm flex-1 min-w-[140px] ${newMatchType === "regex" ? "font-mono" : ""}`}
             />
@@ -275,7 +277,7 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                 )}
                 <button onClick={() => setPreview(null)} className="ml-auto text-muted-foreground hover:text-foreground text-xs">✕</button>
               </div>
-              {preview.examples.map((ex) => (
+              {preview.examples.slice(0, previewVisible).map((ex) => (
                 <div key={ex.id} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span className="shrink-0 text-[10px] tabular-nums">{ex.date.slice(0, 10)}</span>
                   <span className="flex-1 truncate">{ex.description}</span>
@@ -284,8 +286,18 @@ export default function RulesTab({ categories, rules, reload, setAiStatus }: Pro
                   </span>
                 </div>
               ))}
-              {preview.count > preview.examples.length && (
-                <p className="text-[10px] text-muted-foreground">+ {preview.count - preview.examples.length} mai multe...</p>
+              {previewVisible < preview.examples.length && (
+                <button
+                  onClick={() => setPreviewVisible(v => v + 10)}
+                  className="text-[11px] text-primary hover:underline"
+                >
+                  + {Math.min(10, preview.examples.length - previewVisible)} mai multe
+                  {preview.count > preview.examples.length && previewVisible + 10 >= preview.examples.length
+                    ? ` (din ${preview.count} total)` : ""}
+                </button>
+              )}
+              {previewVisible >= preview.examples.length && preview.count > preview.examples.length && (
+                <p className="text-[10px] text-muted-foreground">+ {preview.count - preview.examples.length} mai multe (nu sunt afișate)</p>
               )}
             </div>
           )}
