@@ -37,15 +37,24 @@ export default function CategoryManager() {
 
       <Tabs defaultValue="categories">
         <TabsList className="flex flex-wrap gap-1.5 bg-transparent p-0 !h-auto">
-          <TabsTrigger value="categories" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm">Categorii ({topCategories.length})</TabsTrigger>
-          <TabsTrigger value="rules" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm">Reguli ({rules.length})</TabsTrigger>
+          <TabsTrigger value="categories" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm gap-1.5">
+            Categorii
+            <Badge className="bg-muted text-muted-foreground data-[state=active]:bg-primary-foreground/20 data-[state=active]:text-primary-foreground text-[10px] px-1.5 py-0 rounded-full">{topCategories.length}</Badge>
+          </TabsTrigger>
+          <TabsTrigger value="rules" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm gap-1.5">
+            Reguli
+            <Badge className="bg-muted text-muted-foreground data-[state=active]:bg-primary-foreground/20 data-[state=active]:text-primary-foreground text-[10px] px-1.5 py-0 rounded-full">{rules.length}</Badge>
+          </TabsTrigger>
           {pendingRules.length > 0 && (
-            <TabsTrigger value="pending" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm">
+            <TabsTrigger value="pending" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm gap-1.5">
               De verificat
-              <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0">{pendingRules.length}</Badge>
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 rounded-full">{pendingRules.length}</Badge>
             </TabsTrigger>
           )}
-          <TabsTrigger value="type-rules" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm">Reguli tip ({typeRules.length})</TabsTrigger>
+          <TabsTrigger value="type-rules" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground rounded-md border border-border px-3 py-1.5 text-sm gap-1.5">
+            Reguli tip
+            <Badge className="bg-muted text-muted-foreground data-[state=active]:bg-primary-foreground/20 data-[state=active]:text-primary-foreground text-[10px] px-1.5 py-0 rounded-full">{typeRules.length}</Badge>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="categories">

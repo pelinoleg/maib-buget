@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Plus, Trash2, Pencil, Check, X, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,8 +33,6 @@ export default function CategoriesTab({ categories, reload }: Props) {
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
   const [editCatName, setEditCatName] = useState("");
   const [editCatColor, setEditCatColor] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
-
   // Build flat list of possible parents recursively (supports 3+ levels)
   const parentOptions: { id: number; label: string; depth: number }[] = [];
   const buildParentOptions = (subs: SubCategory[], prefix: string, depth: number) => {
@@ -176,56 +173,43 @@ export default function CategoriesTab({ categories, reload }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Add button / form */}
-      {!showAddForm ? (
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShowAddForm(true)}>
-          <Plus className="h-4 w-4" /> Adauga categorie
-        </Button>
-      ) : (
-        <Card>
-          <CardContent className="pt-4 pb-3 space-y-3">
-            <Input
-              placeholder="Nume categorie"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              autoFocus
+      {/* Add form — always visible at top */}
+      <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-border">
+        <div className="flex flex-wrap gap-1">
+          {COLORS.map((c) => (
+            <button
+              key={c}
+              onClick={() => setNewColor(c)}
+              className={`w-4 h-4 rounded-full transition-transform ${newColor === c ? "ring-2 ring-offset-1 ring-primary scale-110" : ""}`}
+              style={{ backgroundColor: c }}
             />
-            <div className="flex flex-wrap gap-1.5">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setNewColor(c)}
-                  className={`w-5 h-5 rounded-full transition-transform ${newColor === c ? "ring-2 ring-offset-1 ring-primary scale-110" : ""}`}
-                  style={{ backgroundColor: c }}
-                />
-              ))}
-            </div>
-            <Select value={newParent} onValueChange={setNewParent}>
-              <SelectTrigger className="h-8 text-sm">
-                <SelectValue placeholder="Categorie parinte" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Fara parinte (nivel superior)</SelectItem>
-                {parentOptions.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.depth > 0 && <ChevronRight className="h-3 w-3 inline mr-1 text-muted-foreground" />}
-                    {p.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={handleCreate} disabled={!newName.trim()}>
-                <Plus className="h-3.5 w-3.5 mr-1" /> Adauga
-              </Button>
-              <Button variant="ghost" size="sm" onClick={() => { setShowAddForm(false); setNewName(""); }}>
-                Anuleaza
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          ))}
+        </div>
+        <Input
+          placeholder="Nume categorie nouă..."
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+          className="h-8 text-sm w-48"
+        />
+        <Select value={newParent} onValueChange={setNewParent}>
+          <SelectTrigger className="h-8 text-sm w-44">
+            <SelectValue placeholder="Fara parinte" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Fara parinte</SelectItem>
+            {parentOptions.map((p) => (
+              <SelectItem key={p.id} value={String(p.id)}>
+                {p.depth > 0 && <ChevronRight className="h-3 w-3 inline mr-1 text-muted-foreground" />}
+                {p.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button size="sm" onClick={handleCreate} disabled={!newName.trim()} className="h-8">
+          <Plus className="h-3.5 w-3.5 mr-1" /> Adauga
+        </Button>
+      </div>
 
       {/* Categories as grouped chips — 3 levels */}
       <div className="space-y-5">
