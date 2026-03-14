@@ -20,6 +20,8 @@ class HiddenFilterCreate(BaseModel):
     pattern: Optional[str] = None
     category_id: Optional[int] = None
     is_active: bool = True
+    amount_op: Optional[str] = None    # "lt", "lte", "gt", "gte", "eq"
+    amount_value: Optional[float] = None
 
 
 class HiddenFilterUpdate(BaseModel):
@@ -28,6 +30,8 @@ class HiddenFilterUpdate(BaseModel):
     pattern: Optional[str] = None
     category_id: Optional[int] = None
     is_active: Optional[bool] = None
+    amount_op: Optional[str] = None
+    amount_value: Optional[float] = None
 
 
 def _filter_to_dict(f: HiddenFilter) -> dict:
@@ -39,6 +43,8 @@ def _filter_to_dict(f: HiddenFilter) -> dict:
         "category_id": f.category_id,
         "category_name": f.category.name if f.category else None,
         "is_active": f.is_active,
+        "amount_op": f.amount_op,
+        "amount_value": f.amount_value,
         "created_at": f.created_at.isoformat() if f.created_at else None,
     }
 
@@ -54,21 +60,38 @@ def _collect_category_ids(db: Session, root_id: int) -> list[int]:
     return result
 
 
+def _amount_matches(txn: Transaction, f: HiddenFilter) -> bool:
+    """Check optional amount condition. Returns True if no condition set."""
+    if not f.amount_op or f.amount_value is None:
+        return True
+    abs_amount = abs(txn.amount)
+    v = f.amount_value
+    if f.amount_op == "lt":  return abs_amount < v
+    if f.amount_op == "lte": return abs_amount <= v
+    if f.amount_op == "gt":  return abs_amount > v
+    if f.amount_op == "gte": return abs_amount >= v
+    if f.amount_op == "eq":  return abs_amount == v
+    return True
+
+
 def _transaction_matches_filter(txn: Transaction, f: HiddenFilter, category_ids_cache: dict) -> bool:
     """Check if a single transaction matches a hidden filter."""
     if not f.is_active:
         return False
     if f.match_type == "contains" and f.pattern:
-        return f.pattern.lower() in (txn.description or "").lower()
+        text_match = f.pattern.lower() in (txn.description or "").lower()
     elif f.match_type == "regex" and f.pattern:
         try:
-            return bool(re.search(f.pattern, txn.description or "", re.IGNORECASE))
+            text_match = bool(re.search(f.pattern, txn.description or "", re.IGNORECASE))
         except re.error:
             return False
     elif f.match_type == "category" and f.category_id:
         ids = category_ids_cache.get(f.category_id, [])
-        return txn.category_id in ids
-    return False
+        text_match = txn.category_id in ids
+    else:
+        return False
+    # Both conditions must match (amount is optional — if not set, always passes)
+    return text_match and _amount_matches(txn, f)
 
 
 def compute_hidden_ids(db: Session) -> set[int]:
@@ -142,6 +165,8 @@ def create_filter(data: HiddenFilterCreate, db: Session = Depends(get_db)):
         pattern=data.pattern,
         category_id=data.category_id,
         is_active=data.is_active,
+        amount_op=data.amount_op or None,
+        amount_value=data.amount_value,
     )
     db.add(f)
     db.commit()
@@ -323,6 +348,8 @@ def preview_filter(data: HiddenFilterCreate, db: Session = Depends(get_db)):
         pattern=data.pattern,
         category_id=data.category_id,
         is_active=True,
+        amount_op=data.amount_op or None,
+        amount_value=data.amount_value,
     )
 
     txns = db.query(Transaction).all()

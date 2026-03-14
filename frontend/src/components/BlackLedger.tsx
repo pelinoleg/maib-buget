@@ -25,6 +25,8 @@ interface HiddenFilter {
   category_id: number | null;
   category_name: string | null;
   is_active: boolean;
+  amount_op: string | null;
+  amount_value: number | null;
 }
 
 interface HiddenTransaction {
@@ -74,7 +76,7 @@ function FilterForm({
 }: {
   initial?: Partial<HiddenFilter>;
   categories: CatType[];
-  onSave: (data: { name: string; match_type: string; pattern?: string | null; category_id?: number | null; is_active: boolean }) => Promise<void>;
+  onSave: (data: { name: string; match_type: string; pattern?: string | null; category_id?: number | null; is_active: boolean; amount_op?: string | null; amount_value?: number | null }) => Promise<void>;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -82,10 +84,17 @@ function FilterForm({
   const [pattern, setPattern] = useState(initial?.pattern ?? "");
   const [categoryId, setCategoryId] = useState<number | null>(initial?.category_id ?? null);
   const [isActive, setIsActive] = useState(initial?.is_active ?? true);
+  const [amountOp, setAmountOp] = useState<string>(initial?.amount_op ?? "");
+  const [amountValue, setAmountValue] = useState<string>(initial?.amount_value != null ? String(initial.amount_value) : "");
   const [preview, setPreview] = useState<{ count: number; examples: { id: number; description: string; amount: number; date: string }[] } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const amountPayload = () => ({
+    amount_op: amountOp || null,
+    amount_value: amountOp && amountValue ? parseFloat(amountValue) : null,
+  });
 
   const handlePreview = async () => {
     setPreviewLoading(true);
@@ -96,6 +105,7 @@ function FilterForm({
         match_type: matchType,
         pattern: matchType !== "category" ? pattern : null,
         category_id: matchType === "category" ? categoryId : null,
+        ...amountPayload(),
       });
       setPreview(data);
     } catch (e: unknown) {
@@ -109,6 +119,7 @@ function FilterForm({
     if (!name.trim()) { setError("Introduceți un nume"); return; }
     if (matchType !== "category" && !pattern.trim()) { setError("Introduceți un pattern"); return; }
     if (matchType === "category" && !categoryId) { setError("Selectați o categorie"); return; }
+    if (amountOp && (!amountValue || isNaN(parseFloat(amountValue)))) { setError("Introduceți o valoare validă pentru sumă"); return; }
     setSaving(true);
     setError(null);
     try {
@@ -118,6 +129,7 @@ function FilterForm({
         pattern: matchType !== "category" ? pattern.trim() : null,
         category_id: matchType === "category" ? categoryId : null,
         is_active: isActive,
+        ...amountPayload(),
       });
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Eroare la salvare");
@@ -179,6 +191,37 @@ function FilterForm({
           </Select>
         </div>
       )}
+
+      {/* Optional amount condition */}
+      <div>
+        <label className="text-xs text-muted-foreground mb-1 block">Condiție sumă <span className="opacity-50">(opțional)</span></label>
+        <div className="flex items-center gap-2">
+          <select
+            className="h-9 px-2 rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            value={amountOp}
+            onChange={(e) => { setAmountOp(e.target.value); setPreview(null); }}
+          >
+            <option value="">— fără —</option>
+            <option value="lt">mai mic decât (&lt;)</option>
+            <option value="lte">mai mic sau egal (≤)</option>
+            <option value="gt">mai mare decât (&gt;)</option>
+            <option value="gte">mai mare sau egal (≥)</option>
+            <option value="eq">exact egal (=)</option>
+          </select>
+          {amountOp && (
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              className="h-9 w-28 px-3 rounded-md border bg-background text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="0.00"
+              value={amountValue}
+              onChange={(e) => { setAmountValue(e.target.value); setPreview(null); }}
+            />
+          )}
+          {amountOp && <span className="text-xs text-muted-foreground">EUR (valoare absolută)</span>}
+        </div>
+      </div>
 
       <div className="flex items-center gap-2">
         <input

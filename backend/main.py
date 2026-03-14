@@ -68,6 +68,18 @@ if "transactions" in insp.get_table_names():
             conn.execute(text("ALTER TABLE transactions ADD COLUMN hidden_override BOOLEAN DEFAULT 0 NOT NULL"))
             conn.commit()
 
+# Migrate: add amount_op / amount_value to hidden_filters
+if "hidden_filters" in insp.get_table_names():
+    hf_cols = [c["name"] for c in insp.get_columns("hidden_filters")]
+    if "amount_op" not in hf_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE hidden_filters ADD COLUMN amount_op TEXT"))
+            conn.commit()
+    if "amount_value" not in hf_cols:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE hidden_filters ADD COLUMN amount_value REAL"))
+            conn.commit()
+
 # Migrate: create income_adjustments table if missing
 if "income_adjustments" not in insp.get_table_names():
     with engine.connect() as conn:

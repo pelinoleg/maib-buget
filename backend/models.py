@@ -148,6 +148,8 @@ class HiddenFilter(Base):
     pattern = Column(String, nullable=True)       # for contains/regex
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)  # for category type
     is_active = Column(Boolean, default=True)
+    amount_op = Column(String, nullable=True)    # "lt", "gt", "eq", "lte", "gte" — optional amount condition
+    amount_value = Column(Float, nullable=True)  # absolute value to compare against
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     category = relationship("Category")
